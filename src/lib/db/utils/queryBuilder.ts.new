@@ -1,0 +1,227 @@
+/**
+ * 查询构建器工具函数
+ * 用于修复TypeScript类型问题和提供更好的调试信息
+ */
+
+/**
+ * 定义查询结果类型
+ */
+export interface QueryResult<T = unknown> {
+  data: T[];
+  error: Error | null;
+  count?: number;
+  status?: number;
+  statusText?: string;
+}
+
+/**
+ * 定义单个查询结果类型
+ */
+export interface SingleQueryResult<T = unknown> {
+  data: T;
+  error: Error | null;
+  status?: number;
+  statusText?: string;
+}
+
+/**
+ * 定义查询对象类型
+ */
+export type QueryBuilderType = {
+  eq: (field: string, value: unknown) => QueryBuilderType;
+  or: (filter: string) => QueryBuilderType;
+  gte: (field: string, value: unknown) => QueryBuilderType;
+  lte: (field: string, value: unknown) => QueryBuilderType;
+  order: (column: string, options: {ascending: boolean}) => QueryBuilderType;
+  range: (from: number, to: number) => QueryBuilderType;
+  select: (columns: string, options?: unknown) => QueryBuilderType;
+  insert: (data: unknown) => QueryBuilderType;
+  update: (data: unknown) => QueryBuilderType;
+  delete: () => QueryBuilderType;
+  single: () => Promise<SingleQueryResult>;
+  then: <TResult1 = QueryResult, TResult2 = never>(
+    onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | undefined | null
+  ) => Promise<TResult1 | TResult2>;
+  [key: string]: unknown;
+};
+
+// 添加调试标志
+const DEBUG_QUERY = process.env.DEBUG_SUPABASE === 'true';
+
+/**
+ * 记录数据库操作的调试信息
+ */
+function logQueryOperation(operation: string, details?: unknown): void {
+  if (DEBUG_QUERY) {
+    console.log(`[Supabase] ${operation}`, details ? details : '');
+  }
+}
+
+/**
+ * 执行Supabase查询，并捕获可能的异常
+ * @param query Supabase查询对象
+ * @returns 带有data和error的结果对象
+ */
+export function safeQuery(query: unknown): QueryBuilderType {
+  // 检查查询对象是否有效
+  if (!query) {
+    console.error('[Supabase] 无效的查询对象:', query);
+    throw new Error('无效的查询对象');
+  }
+  
+  // 添加调试日志
+  console.log('[Supabase] 执行查询:', {
+    queryType: query?.constructor?.name || '未知查询类型',
+    hasQuery: !!query
+  });
+
+  return {
+    // 转发原始查询的所有方法
+    ...query as Record<string, unknown>,
+    
+    // 包装eq方法，保持类型安全
+    eq: (field: string, value: unknown) => {
+      logQueryOperation('EQ', { field, value });
+      try {
+        // @ts-expect-error 需要访问未知类型上的eq方法
+        return safeQuery((query as Record<string, unknown>).eq(field, value));
+      } catch (error) {
+        console.error(`[Supabase] eq操作错误 (${field}=${value}):`, error);
+        throw error;
+      }
+    },
+    
+    // 包装or方法
+    or: (filter: string) => {
+      logQueryOperation('OR', { filter });
+      try {
+        // @ts-expect-error 需要访问未知类型上的or方法
+        return safeQuery((query as Record<string, unknown>).or(filter));
+      } catch (error) {
+        console.error(`[Supabase] or操作错误 (${filter}):`, error);
+        throw error;
+      }
+    },
+    
+    // 包装gte方法
+    gte: (field: string, value: unknown) => {
+      logQueryOperation('GTE', { field, value });
+      try {
+        // @ts-expect-error 需要访问未知类型上的gte方法
+        return safeQuery((query as Record<string, unknown>).gte(field, value));
+      } catch (error) {
+        console.error(`[Supabase] gte操作错误 (${field}=${value}):`, error);
+        throw error;
+      }
+    },
+    
+    // 包装lte方法
+    lte: (field: string, value: unknown) => {
+      logQueryOperation('LTE', { field, value });
+      try {
+        // @ts-expect-error 需要访问未知类型上的lte方法
+        return safeQuery((query as Record<string, unknown>).lte(field, value));
+      } catch (error) {
+        console.error(`[Supabase] lte操作错误 (${field}=${value}):`, error);
+        throw error;
+      }
+    },
+    
+    // 包装order方法
+    order: (column: string, options: {ascending: boolean}) => {
+      logQueryOperation('ORDER', { column, options });
+      try {
+        // @ts-expect-error 需要访问未知类型上的order方法
+        return safeQuery((query as Record<string, unknown>).order(column, options));
+      } catch (error) {
+        console.error(`[Supabase] order操作错误 (${column}):`, error);
+        throw error;
+      }
+    },
+    
+    // 包装range方法
+    range: (from: number, to: number) => {
+      logQueryOperation('RANGE', { from, to });
+      try {
+        // @ts-expect-error 需要访问未知类型上的range方法
+        return safeQuery((query as Record<string, unknown>).range(from, to));
+      } catch (error) {
+        console.error(`[Supabase] range操作错误 (${from}-${to}):`, error);
+        throw error;
+      }
+    },
+    
+    // 包装select方法
+    select: (columns: string, options?: unknown) => {
+      logQueryOperation('SELECT', { columns, options });
+      try {
+        // @ts-expect-error 需要访问未知类型上的select方法
+        return safeQuery((query as Record<string, unknown>).select(columns, options));
+      } catch (error) {
+        console.error(`[Supabase] select操作错误 (${columns}):`, error);
+        throw error;
+      }
+    },
+    
+    // 包装insert方法
+    insert: (data: unknown) => {
+      logQueryOperation('INSERT', data);
+      try {
+        // @ts-expect-error 需要访问未知类型上的insert方法
+        return safeQuery((query as Record<string, unknown>).insert(data));
+      } catch (error) {
+        console.error('[Supabase] insert操作错误:', error);
+        throw error;
+      }
+    },
+    
+    // 包装update方法
+    update: (data: unknown) => {
+      logQueryOperation('UPDATE', data);
+      try {
+        // @ts-expect-error 需要访问未知类型上的update方法
+        return safeQuery((query as Record<string, unknown>).update(data));
+      } catch (error) {
+        console.error('[Supabase] update操作错误:', error);
+        throw error;
+      }
+    },
+    
+    // 包装delete方法
+    delete: () => {
+      logQueryOperation('DELETE');
+      try {
+        // @ts-expect-error 需要访问未知类型上的delete方法
+        return safeQuery((query as Record<string, unknown>).delete());
+      } catch (error) {
+        console.error('[Supabase] delete操作错误:', error);
+        throw error;
+      }
+    },
+    
+    // 包装single方法
+    single: () => {
+      logQueryOperation('SINGLE');
+      try {
+        // @ts-expect-error 需要访问未知类型上的single方法
+        return (query as Record<string, unknown>).single();
+      } catch (error) {
+        console.error('[Supabase] single操作错误:', error);
+        throw error;
+      }
+    },
+    
+    // 转发执行函数(await)
+    then: (...args: unknown[]) => {
+      logQueryOperation('EXECUTE QUERY');
+      try {
+        // @ts-expect-error 需要访问未知类型上的then方法
+        return (query as Record<string, unknown>).then(...args);
+      } catch (error) {
+        console.error('[Supabase] 执行查询错误:', error);
+        throw error;
+      }
+    }
+  };
+} 
