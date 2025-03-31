@@ -20,6 +20,48 @@ interface FetchOptions extends RequestInit {
 }
 
 /**
+ * 清除指定URL的缓存
+ * @param url 要清除缓存的URL，如果不提供则清除所有缓存
+ * @param pattern 如果设置为true，则将url视为正则模式进行匹配
+ */
+export function clearCache(url?: string, pattern: boolean = false): void {
+  if (!url) {
+    // 清除所有缓存
+    cache.clear();
+    console.log('已清除所有缓存');
+    return;
+  }
+
+  if (pattern) {
+    // 按模式匹配清除缓存
+    const regex = new RegExp(url);
+    const keysToDelete: string[] = [];
+    
+    cache.forEach((_, key) => {
+      if (regex.test(key.toString())) {
+        keysToDelete.push(key);
+      }
+    });
+    
+    keysToDelete.forEach(key => cache.delete(key));
+    console.log(`已清除匹配模式 ${url} 的 ${keysToDelete.length} 个缓存项`);
+  } else {
+    // 清除特定URL的缓存
+    let deleted = false;
+    cache.forEach((_, key) => {
+      if (key.toString().startsWith(url)) {
+        cache.delete(key);
+        deleted = true;
+      }
+    });
+    
+    if (deleted) {
+      console.log(`已清除URL ${url} 的缓存`);
+    }
+  }
+}
+
+/**
  * 增强的fetch函数
  * @param url 请求URL
  * @param options 请求选项
@@ -114,4 +156,5 @@ async function attemptFetch(
   }
 }
 
+// 导出fetchWithCache作为默认导出，同时导出clearCache
 export default fetchWithCache; 

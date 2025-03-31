@@ -1,0 +1,80 @@
+/* 模板页面样式 */
+
+.templateCard {
+  height: 100%;
+  transition: all 0.3s;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.07);
+}
+
+.templateCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.cardCover {
+  padding: 20px 20px 10px 20px;
+}
+
+.cardTitle {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.cardMeta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.cardDescription {
+  min-height: 48px;
+  margin-bottom: 8px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.searchBox {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  background-color: #fff;
+  padding: 16px;
+}
+
+.searchForm {
+  width: 100%;
+}
+
+.emptyState {
+  padding: 48px 0;
+  background-color: #fafafa;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.statCard {
+  border-radius: 8px;
+  height: 100%;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.filterResultInfo {
+  margin-bottom: 16px;
+}
+
+.createButton {
+  border-radius: 6px;
+}
+
+.skeletonCard {
+  height: 100%;
+  border-radius: 8px;
+} 

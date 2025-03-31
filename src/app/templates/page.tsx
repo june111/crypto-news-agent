@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Input, 
   Button, 
@@ -14,14 +14,34 @@ import {
   Popconfirm,
   Tag,
   Select,
-  Form
+  Form,
+  message,
+  Spin,
+  Skeleton,
+  Tooltip,
+  Badge,
+  Statistic
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { 
+  PlusOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  SearchOutlined, 
+  ClearOutlined,
+  EyeOutlined,
+  FireOutlined,
+  RiseOutlined,
+  CalendarOutlined,
+  FileTextOutlined,
+  AppstoreOutlined
+} from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useRouter } from 'next/navigation';
+import styles from './templates.module.css';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
+const { Meta } = Card;
 
 // 模板类型定义
 interface Template {
@@ -30,56 +50,48 @@ interface Template {
   description: string;
   category: string;
   content: string;
-  createdAt: string;
-  usageCount: number;
+  created_at: string;
+  updated_at?: string;
+  usage_count: number;
 }
 
 const TemplatesPage = () => {
   const router = useRouter();
 
-  // 模拟模板数据
-  const [templates, setTemplates] = useState<Template[]>([
-    { 
-      id: '1', 
-      name: '市场分析模板', 
-      description: '适用于加密货币市场分析类文章', 
-      category: '分析',
-      content: '# {{币种名称}}市场分析报告\n\n## 市场概况\n\n{{币种名称}}目前市值为{{市值}}，24小时交易量为{{交易量}}。\n\n## 价格分析\n\n近期价格表现：{{价格分析}}\n\n## 技术指标\n\n- RSI: {{RSI值}}\n- MACD: {{MACD值}}\n- 布林带: {{布林带情况}}\n\n## 市场情绪\n\n目前市场对{{币种名称}}的总体情绪是{{情绪分析}}。\n\n## 未来展望\n\n基于以上分析，我们预计{{币种名称}}在短期内可能会{{预测结果}}。',
-      createdAt: '2025-02-15', 
-      usageCount: 28 
-    },
-    { 
-      id: '2', 
-      name: '项目介绍模板', 
-      description: '用于介绍新的区块链项目和代币', 
-      category: '介绍',
-      content: '# {{项目名称}}项目介绍\n\n## 项目概述\n\n{{项目名称}}是一个{{项目类型}}项目，主要致力于解决{{问题领域}}问题。\n\n## 核心功能\n\n1. {{功能1}}\n2. {{功能2}}\n3. {{功能3}}\n\n## 技术架构\n\n{{项目名称}}基于{{底层技术}}构建，采用了{{技术特点}}。\n\n## 代币经济模型\n\n代币符号：{{代币符号}}\n总供应量：{{总供应量}}\n分配方案：{{分配方案}}\n\n## 团队背景\n\n项目由{{团队/创始人}}创建，他们拥有{{背景经验}}。\n\n## 发展路线图\n\n{{路线图内容}}',
-      createdAt: '2025-02-20', 
-      usageCount: 15 
-    },
-    { 
-      id: '3', 
-      name: '新闻简报模板', 
-      description: '每日加密货币新闻概要', 
-      category: '报道',
-      content: '# 加密货币市场日报 {{日期}}\n\n## 市场概览\n\n今日加密货币市场整体{{市场表现}}。比特币价格{{比特币价格变动}}，以太坊价格{{以太坊价格变动}}。\n\n## 今日重要新闻\n\n### {{新闻标题1}}\n{{新闻内容1}}\n\n### {{新闻标题2}}\n{{新闻内容2}}\n\n### {{新闻标题3}}\n{{新闻内容3}}\n\n## 监管动态\n\n{{监管新闻}}\n\n## 值得关注的项目\n\n{{项目动态}}\n\n## 市场展望\n\n{{市场预测}}',
-      createdAt: '2025-03-01', 
-      usageCount: 42 
-    },
-    { 
-      id: '4', 
-      name: '技术解析模板', 
-      description: '详细解析区块链技术细节', 
-      category: '技术',
-      content: '# {{技术名称}}技术解析\n\n## 技术背景\n\n{{技术名称}}是{{技术定义和背景}}。\n\n## 核心原理\n\n{{技术原理详解}}\n\n## 关键特性\n\n1. {{特性1}}\n2. {{特性2}}\n3. {{特性3}}\n\n## 技术优势\n\n相比传统方案，{{技术名称}}的优势在于{{优势分析}}。\n\n## 应用场景\n\n{{技术名称}}主要适用于以下场景：\n\n- {{场景1}}\n- {{场景2}}\n- {{场景3}}\n\n## 技术挑战与解决方案\n\n目前{{技术名称}}面临的主要挑战是{{挑战}}，可能的解决方案包括{{解决方案}}。\n\n## 发展前景\n\n{{发展前景分析}}',
-      createdAt: '2025-03-10', 
-      usageCount: 8 
-    }
-  ]);
+  // 状态定义
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   
   // 搜索状态
   const [searchName, setSearchName] = useState('');
   const [searchCategory, setSearchCategory] = useState<string>('');
+  
+  // 从API获取模板数据 - 仅在页面加载时执行一次
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        setLoading(true);
+        console.log('正在获取模板列表数据...');
+        
+        const response = await fetch('/api/templates');
+        
+        if (!response.ok) {
+          throw new Error('获取模板列表失败');
+        }
+        
+        const data = await response.json();
+        console.log('获取到模板数据:', data.templates?.length || 0, '条记录');
+        setTemplates(data.templates || []);
+      } catch (error) {
+        console.error('获取模板失败:', error);
+        message.error('获取模板列表失败，请稍后重试');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTemplates();
+  }, []); // 空依赖数组，确保只在组件挂载时执行一次
   
   // 从现有模板中提取所有唯一分类
   const uniqueCategories = useMemo(() => {
@@ -91,6 +103,27 @@ const TemplatesPage = () => {
     });
     return Array.from(categoriesSet);
   }, [templates]);
+  
+  // 获取统计数据
+  const statistics = useMemo(() => {
+    const totalTemplates = templates.length;
+    const totalUsage = templates.reduce((sum, template) => sum + template.usage_count, 0);
+    const categoriesCount = uniqueCategories.length;
+    
+    // 找出使用最多的模板
+    const mostUsedTemplate = templates.length > 0 
+      ? templates.reduce((prev, current) => 
+          prev.usage_count > current.usage_count ? prev : current
+        ) 
+      : null;
+    
+    return {
+      totalTemplates,
+      totalUsage,
+      categoriesCount,
+      mostUsedTemplate
+    };
+  }, [templates, uniqueCategories]);
   
   // 处理模板名称搜索
   const handleNameSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -113,6 +146,30 @@ const TemplatesPage = () => {
     router.push('/templates/edit/new');
   };
   
+  // 处理删除模板
+  const handleDeleteTemplate = async (id: string, name: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/templates/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('删除模板失败');
+      }
+      
+      // 本地更新UI，不需要重新获取数据
+      setTemplates(prevTemplates => prevTemplates.filter((t: Template) => t.id !== id));
+      
+      message.success(`已成功删除模板"${name}"`);
+    } catch (error) {
+      console.error('删除模板失败:', error);
+      message.error('删除模板失败，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // 过滤数据 - 同时匹配名称和分类
   const filteredTemplates = templates.filter((template: Template) => {
     const nameMatch = template.name.toLowerCase().includes(searchName.toLowerCase());
@@ -121,7 +178,7 @@ const TemplatesPage = () => {
   });
   
   // 按使用次数排序 (降序)
-  const sortedTemplates = [...filteredTemplates].sort((a, b) => b.usageCount - a.usageCount);
+  const sortedTemplates = [...filteredTemplates].sort((a, b) => b.usage_count - a.usage_count);
   
   // 获取分类对应的颜色
   const getCategoryColor = (category: string) => {
@@ -143,141 +200,256 @@ const TemplatesPage = () => {
     }
   };
   
+  // 获取使用次数对应的标签
+  const getUsageBadge = (count: number) => {
+    if (count > 30) return <Badge count={count} overflowCount={99} color="#f50" />;
+    if (count > 15) return <Badge count={count} overflowCount={99} color="#108ee9" />;
+    return <Badge count={count} overflowCount={99} color="#52c41a" />;
+  };
+  
+  // 渲染模板卡片
+  const renderTemplateCard = (template: Template) => {
+    return (
+      <Badge.Ribbon 
+        text={`${template.category}`} 
+        color={getCategoryColor(template.category)}
+        style={{ opacity: 0.9 }}
+      >
+        <Card 
+          hoverable
+          className={styles.templateCard}
+          onClick={() => router.push(`/templates/edit/${template.id}`)}
+          actions={[
+            <Tooltip title="编辑模板" key="edit">
+              <Button 
+                type="text" 
+                icon={<EditOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation(); // 阻止事件冒泡
+                  router.push(`/templates/edit/${template.id}`);
+                }}
+              />
+            </Tooltip>,
+            <Tooltip title="删除模板" key="delete">
+              <Popconfirm
+                title="确认删除"
+                description={`确定要删除模板"${template.name}"吗？此操作无法撤销。`}
+                onConfirm={(e) => {
+                  e.stopPropagation(); // 阻止事件冒泡
+                  handleDeleteTemplate(template.id, template.name);
+                }}
+                okText="确认删除"
+                cancelText="取消"
+                okButtonProps={{ danger: true }}
+              >
+                <Button 
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={(e) => e.stopPropagation()} // 阻止事件冒泡
+                />
+              </Popconfirm>
+            </Tooltip>
+          ]}
+          cover={
+            <div 
+              className={styles.cardCover}
+              style={{ 
+                background: `linear-gradient(135deg, ${getCategoryColor(template.category)}22 0%, #ffffff 100%)` 
+              }}
+            >
+              <Title level={4} ellipsis={{ rows: 1 }} className={styles.cardTitle}>
+                {template.name}
+              </Title>
+              <div className={styles.cardMeta}>
+                <Text type="secondary">
+                  <CalendarOutlined /> {new Date(template.created_at).toLocaleString('zh-CN', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit' 
+                  })}
+                </Text>
+                <Tooltip title={`使用次数: ${template.usage_count}`}>
+                  <Text>
+                    <FireOutlined style={{ color: '#ff4d4f' }} /> <strong>{template.usage_count}</strong>
+                  </Text>
+                </Tooltip>
+              </div>
+            </div>
+          }
+        >
+          <Paragraph 
+            ellipsis={{ rows: 2 }} 
+            className={styles.cardDescription}
+          >
+            {template.description}
+          </Paragraph>
+        </Card>
+      </Badge.Ribbon>
+    );
+  };
+  
   return (
     <DashboardLayout>
       <div style={{ padding: '24px' }}>
-        <Title level={2} style={{ marginBottom: '12px' }}>文章模板列表</Title>
-        <Text type="secondary" style={{ fontSize: '16px', display: 'block', marginBottom: '24px' }}>
-          管理用于快速创建文章的模板
-        </Text>
-        
-        <Divider />
-        
-        {/* 搜索条件区域 */}
-        <div style={{ 
-          backgroundColor: '#f9f9f9',
-          padding: '16px',
-          borderRadius: '8px',
-          marginBottom: '24px',
-          border: '1px solid #f0f0f0'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: '16px'
-          }}>
-            <Title level={4} style={{ margin: 0 }}>搜索条件</Title>
-            
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <Button onClick={handleClearSearch}>
-                清空筛选
-              </Button>
-              
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleAddTemplate}>
-                创建新模板
-              </Button>
-            </div>
+        <div className={styles.pageHeader}>
+          <div>
+            <Title level={2} style={{ marginBottom: '8px' }}>文章模板库</Title>
+            <Text type="secondary" style={{ fontSize: '16px' }}>
+              管理和使用模板快速创建高质量文章
+            </Text>
           </div>
           
-          {/* 搜索条件网格布局 - 使用Ant Design的Form和Grid */}
-          <Form layout="vertical">
-            <Row gutter={16}>
-              {/* 模板名称搜索 */}
-              <Col span={12}>
-                <Form.Item label="模板名称">
+          <Button 
+            type="primary" 
+            size="large"
+            icon={<PlusOutlined />} 
+            onClick={handleAddTemplate}
+            className={styles.createButton}
+          >
+            创建新模板
+          </Button>
+        </div>
+        
+        {/* 统计信息卡片 */}
+        {!loading && (
+          <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+            <Col xs={24} sm={8}>
+              <Card bordered={false} className={styles.statCard}>
+                <Statistic 
+                  title="模板总数" 
+                  value={statistics.totalTemplates} 
+                  prefix={<FileTextOutlined />} 
+                  valueStyle={{ color: '#1890ff' }}
+                />
+              </Card>
+            </Col>
+            
+            <Col xs={24} sm={8}>
+              <Card bordered={false} className={styles.statCard}>
+                <Statistic 
+                  title="分类数量" 
+                  value={statistics.categoriesCount} 
+                  prefix={<AppstoreOutlined />}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Card>
+            </Col>
+            
+            <Col xs={24} sm={8}>
+              <Card bordered={false} className={styles.statCard}>
+                <Statistic 
+                  title="总使用次数" 
+                  value={statistics.totalUsage} 
+                  prefix={<RiseOutlined />}
+                  valueStyle={{ color: '#fa541c' }}
+                />
+              </Card>
+            </Col>
+          </Row>
+        )}
+        
+        {/* 搜索条件区域 */}
+        <Card 
+          bordered={false}
+          className={styles.searchBox}
+        >
+          <Form layout="vertical" className={styles.searchForm}>
+            <Row gutter={24} align="middle">
+              <Col xs={24} md={10}>
+                <Form.Item label="模板名称" style={{ marginBottom: '12px' }}>
                   <Input
                     value={searchName}
                     onChange={handleNameSearch}
-                    placeholder="输入模板名称搜索..."
+                    placeholder="搜索模板名称..."
+                    prefix={<SearchOutlined />}
                     allowClear
+                    style={{ borderRadius: '6px' }}
                   />
                 </Form.Item>
               </Col>
               
-              {/* 文章分类搜索 */}
-              <Col span={12}>
-                <Form.Item label="文章分类">
+              <Col xs={24} md={10}>
+                <Form.Item label="文章分类" style={{ marginBottom: '12px' }}>
                   <Select
                     value={searchCategory}
                     onChange={handleCategorySearch}
-                    placeholder="请选择分类"
-                    style={{ width: '100%' }}
+                    placeholder="选择文章分类"
+                    style={{ width: '100%', borderRadius: '6px' }}
                     allowClear
+                    showSearch
+                    optionFilterProp="children"
                   >
                     {uniqueCategories.map((category: string) => (
-                      <Option key={category} value={category}>{category}</Option>
+                      <Option key={category} value={category}>
+                        <Tag color={getCategoryColor(category)}>
+                          {category}
+                        </Tag>
+                      </Option>
                     ))}
                   </Select>
                 </Form.Item>
               </Col>
+              
+              <Col xs={24} md={4}>
+                <Form.Item label=" " style={{ marginBottom: '12px' }}>
+                  <Button
+                    icon={<ClearOutlined />}
+                    onClick={handleClearSearch}
+                    style={{ borderRadius: '6px', width: '100%' }}
+                  >
+                    清空筛选
+                  </Button>
+                </Form.Item>
+              </Col>
             </Row>
           </Form>
-        </div>
+        </Card>
         
-        {/* 模板卡片网格 - 使用排序后的数据 */}
-        {sortedTemplates.length > 0 ? (
+        {/* 过滤结果提示 */}
+        {!loading && sortedTemplates.length > 0 && (
+          <div className={styles.filterResultInfo}>
+            <Text>
+              共找到 <Text strong>{sortedTemplates.length}</Text> 个符合条件的模板
+              {searchName && <span>，关键词：<Tag color="blue">{searchName}</Tag></span>}
+              {searchCategory && <span>，分类：<Tag color={getCategoryColor(searchCategory)}>{searchCategory}</Tag></span>}
+            </Text>
+          </div>
+        )}
+        
+        {/* 模板卡片网格 */}
+        {loading ? (
+          <Row gutter={[16, 16]}>
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Col xs={24} sm={12} md={8} lg={6} key={`skeleton-${index}`}>
+                <Card className={styles.skeletonCard}>
+                  <Skeleton active avatar paragraph={{ rows: 3 }} />
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        ) : sortedTemplates.length > 0 ? (
           <Row gutter={[16, 16]}>
             {sortedTemplates.map((template: Template) => (
-              <Col xs={24} sm={12} md={8} lg={6} key={template.id}>
-                <Card 
-                  hoverable
-                  title={
-                    <Text strong style={{ color: '#1890ff' }}>
-                      {template.name}
-                    </Text>
-                  }
-                  style={{ height: '100%' }}
-                  extra={
-                    <Tag color={getCategoryColor(template.category)}>
-                      {template.category}
-                    </Tag>
-                  }
-                >
-                  <Text style={{ minHeight: '40px' }}>{template.description}</Text>
-                  
-                  <div style={{ fontSize: '13px', color: '#888', marginBottom: '15px' }}>
-                    <div style={{ marginBottom: '4px' }}>创建时间: {template.createdAt}</div>
-                    <div>使用次数: <strong>{template.usageCount}</strong></div>
-                  </div>
-                  
-                  <Space style={{ width: '100%' }}>
-                    <Button 
-                      type="primary" 
-                      icon={<EditOutlined />}
-                      onClick={() => router.push(`/templates/edit/${template.id}`)}
-                    >
-                      编辑
-                    </Button>
-                    <Popconfirm
-                      title="确认删除"
-                      description={`确定要删除模板"${template.name}"吗？此操作无法撤销。`}
-                      onConfirm={() => setTemplates(templates.filter((t: Template) => t.id !== template.id))}
-                      okText="确认删除"
-                      cancelText="取消"
-                      okButtonProps={{ danger: true }}
-                    >
-                      <Button 
-                        danger
-                        icon={<DeleteOutlined />}
-                      >
-                        删除
-                      </Button>
-                    </Popconfirm>
-                  </Space>
-                </Card>
+              <Col xs={24} sm={12} md={8} lg={6} key={template.id} style={{ marginBottom: '8px' }}>
+                {renderTemplateCard(template)}
               </Col>
             ))}
           </Row>
         ) : (
           <Empty 
-            description="没有找到匹配的模板" 
-            style={{ 
-              padding: '24px', 
-              backgroundColor: '#f9f9f9',
-              borderRadius: '8px'
-            }}
-          />
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <span>
+                {searchName || searchCategory ? '没有找到匹配的模板' : '暂无模板，请创建新模板'}
+              </span>
+            }
+            className={styles.emptyState}
+          >
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddTemplate}>
+              创建第一个模板
+            </Button>
+          </Empty>
         )}
       </div>
     </DashboardLayout>

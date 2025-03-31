@@ -143,16 +143,16 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
                 onClick: () => handleMenuClick('hot-topics'),
               },
               {
-                key: 'articles',
-                icon: <FileTextOutlined />,
-                label: '文章列表',
-                onClick: () => handleMenuClick('articles'),
-              },
-              {
                 key: 'templates',
                 icon: <FormOutlined />,
                 label: '模板列表',
                 onClick: () => handleMenuClick('templates'),
+              },
+              {
+                key: 'articles',
+                icon: <FileTextOutlined />,
+                label: '文章列表',
+                onClick: () => handleMenuClick('articles'),
               },
             ],
           },

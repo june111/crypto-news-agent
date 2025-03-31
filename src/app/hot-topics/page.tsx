@@ -665,7 +665,9 @@ const HotTopicsPage: React.FC = () => {
     
     const today = new Date().toISOString().split('T')[0];
     const todayTopics = hotTopics.filter(t => t.date === today);
-    const todayTrending = todayTopics.filter(t => t.status === 'trending').length;
+    
+    // 热门话题标准：搜索量超过8000次
+    const todayTrending = todayTopics.filter(t => t.volume >= 8000).length;
     const todayMaxVolume = todayTopics.length > 0 ? Math.max(...todayTopics.map(t => t.volume)) : 0;
     
     return {

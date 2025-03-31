@@ -22,7 +22,7 @@ import {
   DeleteOutlined 
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
-import fetchWithCache from '@/lib/utils/fetchUtils';
+import fetchWithCache, { clearCache } from '@/lib/utils/fetchUtils';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -33,8 +33,9 @@ interface Template {
   description: string;
   category: string;
   content: string;
-  createdAt: string;
-  usageCount: number;
+  created_at: string;
+  updated_at?: string;
+  usage_count: number;
 }
 
 const TemplateEditPage = () => {
@@ -68,10 +69,24 @@ const TemplateEditPage = () => {
         }
         
         // 使用优化的fetch函数获取模板数据
-        const template = await fetchWithCache<Template>(`/api/templates/${templateId}`, {
+        const templateData = await fetchWithCache<Template>(`/api/templates/${templateId}`, {
           useCache: { ttl: 300000 }, // 缓存5分钟
           retry: 2
         });
+        
+        console.log('获取到模板数据:', templateData);
+        
+        // 确保模板数据符合接口要求
+        const template: Template = {
+          id: templateData.id,
+          name: templateData.name,
+          description: templateData.description || '',
+          category: templateData.category || '',
+          content: templateData.content,
+          created_at: templateData.created_at,
+          updated_at: templateData.updated_at,
+          usage_count: templateData.usage_count || 0
+        };
         
         setTemplate(template);
         
@@ -139,11 +154,27 @@ const TemplateEditPage = () => {
   };
   
   // 删除模板
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!template) return;
     
-    message.success('模板已删除');
-    router.push('/templates');
+    try {
+      const response = await fetch(`/api/templates/${templateId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('删除模板失败');
+      }
+      
+      // 清除模板列表的缓存，确保列表页面显示最新数据
+      clearCache('/api/templates');
+      
+      message.success('模板已删除');
+      router.push('/templates');
+    } catch (error) {
+      console.error('删除模板失败:', error);
+      message.error('删除模板失败，请稍后重试');
+    }
   };
   
   return (
@@ -275,9 +306,15 @@ const TemplateEditPage = () => {
                 <Divider />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <Text type="secondary">创建时间: {template.createdAt}</Text>
+                    <Text type="secondary">创建时间: {
+                      new Date(template.created_at).toLocaleString('zh-CN', { 
+                        year: 'numeric', 
+                        month: '2-digit', 
+                        day: '2-digit' 
+                      })
+                    }</Text>
                     <br />
-                    <Text type="secondary">使用次数: <strong>{template.usageCount}</strong></Text>
+                    <Text type="secondary">使用次数: <strong>{template.usage_count}</strong></Text>
                   </div>
                   
                   <Popconfirm
