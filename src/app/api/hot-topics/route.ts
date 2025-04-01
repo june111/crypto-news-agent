@@ -48,7 +48,16 @@ export async function GET(request: NextRequest) {
       };
     });
     
-    return NextResponse.json({ topics: formattedTopics });
+    // 设置响应头，指定字符编码为UTF-8
+    return new NextResponse(
+      JSON.stringify({ topics: formattedTopics }, null, 2), 
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8'
+        }
+      }
+    );
   } catch (error) {
     console.error('获取热点话题列表失败:', error);
     return NextResponse.json(
@@ -94,7 +103,16 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('热点话题创建成功:', topic);
-    return NextResponse.json(topic, { status: 201 });
+    // 设置响应头，指定字符编码为UTF-8
+    return new NextResponse(
+      JSON.stringify(topic, null, 2),
+      {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8'
+        }
+      }
+    );
   } catch (error) {
     console.error('创建热点话题失败:', error);
     return NextResponse.json(

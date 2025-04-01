@@ -1,23 +1,45 @@
 /**
- * 数据库入口文件
- * 导出所有数据库相关功能
+ * 数据库总入口
+ * 只导出必要的函数，减少不必要的引用
  */
-
-// 导入仓库模块
+import { getSupabaseClient } from './supabase';
+import { TABLES } from './schema';
 import repositories from './repositories';
 
-// 重新导出Supabase客户端
-export { getSupabaseClient } from './supabase';
+// 数据库初始化状态
+let isDatabaseInitialized = false;
 
-// 导出schema中的TABLES常量
-export { TABLES } from './schema';
+// 按需加载数据库
+const initDatabaseOnce = async () => {
+  // 防止重复初始化
+  if (isDatabaseInitialized) {
+    return;
+  }
+  
+  try {
+    // 获取客户端
+    const supabase = getSupabaseClient();
+    console.log('数据库模块初始化中...');
+    
+    // 动态导入初始化函数，减少首次加载体积
+    const { initDatabase } = await import('./supabase');
+    await initDatabase();
+    
+    // 设置已初始化标志
+    isDatabaseInitialized = true;
+    console.log('数据库初始化完成');
+  } catch (error) {
+    console.error('数据库初始化失败:', error);
+    throw error;
+  }
+};
 
-// 导出创建表工具
-export * from './createTables';
+// 导出所需函数和常量
+export {
+  getSupabaseClient,
+  initDatabaseOnce,
+  TABLES
+};
 
-// 不再直接导出仓库中的具体实现
-// 而是通过repositories访问各个仓库
-// export * from './repositories';
-
-// 默认导出所有仓库
+// 导出仓库
 export default repositories; 

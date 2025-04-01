@@ -1,0 +1,263 @@
+/* 文章列表页面样式 */
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  margin-bottom: 4px !important;
+  font-weight: 600;
+}
+
+.pageDescription {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.searchBox {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.searchHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.searchForm {
+  padding: 4px;
+}
+
+.clearButton, .generateButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 4px;
+}
+
+.generateButton {
+  background: linear-gradient(45deg, #1677ff, #40a9ff);
+  border: none;
+}
+
+.tableContainer {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  margin-bottom: 40px;
+}
+
+.actionButtons {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.createButton {
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.keywordTagContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.keywordTag {
+  background: #f0f0f0;
+  color: #595959;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.statusTag {
+  min-width: 62px;
+  text-align: center;
+}
+
+.tableActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tableActionButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tableImage {
+  position: relative;
+  width: 80px;
+  height: 50px;
+  border-radius: 4px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.tableImage:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.titleOverflow {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filterResultInfo {
+  margin-bottom: 16px;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modalSection {
+  margin-bottom: 20px;
+}
+
+.modalHelp {
+  font-size: 12px;
+  display: block;
+  margin-top: 4px;
+}
+
+.tableEmpty {
+  padding: 40px 0;
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .tableActions {
+    flex-direction: column;
+  }
+}
+
+/* 文章编辑页面样式 */
+.container {
+  padding: 24px;
+  background-color: #fff;
+}
+
+.breadcrumb {
+  margin-bottom: 16px;
+}
+
+.title {
+  margin-bottom: 0;
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+.formItem {
+  margin-bottom: 16px;
+}
+
+/* 编辑器相关样式 */
+.editorContainer {
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.toolbar {
+  border-bottom: 1px solid #d9d9d9;
+}
+
+.editor {
+  height: 500px;
+  overflow-y: hidden;
+}
+
+.uploadButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 104px;
+  width: 100%;
+  background-color: #fafafa;
+  border: 1px dashed #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.previewImage {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.tagContainer {
+  margin-bottom: 8px;
+}
+
+.tagInput {
+  width: 120px;
+  margin-right: 8px;
+}
+
+.spaceBetween {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 8px;
+}
+
+.savingSpinner {
+  margin-right: 8px;
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+  
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .previewImage {
+    height: 120px;
+  }
+  
+  .editor {
+    height: 300px;
+  }
+} 

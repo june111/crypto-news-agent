@@ -1,0 +1,82 @@
+/* 模板编辑页面样式 */
+
+.container {
+  padding: 24px;
+}
+
+.breadcrumb {
+  margin-bottom: 16px;
+}
+
+.headerSection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.title {
+  margin: 0;
+}
+
+.section {
+  background-color: #f9f9f9;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  margin-bottom: 16px;
+}
+
+.monoText {
+  font-family: monospace;
+}
+
+.infoSection {
+  margin-top: 24px;
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.placeholder {
+  height: 24px;
+}
+
+.placeholderSmall {
+  height: 14px;
+}
+
+/* 模板列表卡片样式 */
+.templateCard {
+  height: 100%;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+}
+
+.templateCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.cardMeta {
+  margin-top: auto;
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cardActions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+} 

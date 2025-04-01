@@ -1,32 +1,37 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 
-// 按需导入Ant Design组件
-import Form from 'antd/lib/form';
-import Input from 'antd/lib/input'; 
-import Button from 'antd/lib/button';
-import Card from 'antd/lib/card';
-import Typography from 'antd/lib/typography';
-import Divider from 'antd/lib/divider';
-import message from 'antd/lib/message';
-import Space from 'antd/lib/space';
-import Breadcrumb from 'antd/lib/breadcrumb';
-import Popconfirm from 'antd/lib/popconfirm';
-import Spin from 'antd/lib/spin';
-
-import { 
-  SaveOutlined, 
-  ArrowLeftOutlined, 
-  DeleteOutlined 
-} from '@ant-design/icons';
+// 基础组件立即导入
+import { Spin, Form, message, Button, Space, Breadcrumb, Divider } from 'antd';
+import { SaveOutlined, ArrowLeftOutlined, DeleteOutlined } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
 import fetchWithCache, { clearCache } from '@/lib/utils/fetchUtils';
 
-const { Title, Text } = Typography;
-const { TextArea } = Input;
+// 导入CSS模块
+import styles from '../../template.module.css';
 
+// 懒加载非关键组件 - 使用直接导入避免类型错误
+const Card = dynamic(() => import('antd/lib/card'), { ssr: false });
+const Input = dynamic(() => import('antd/lib/input'), { ssr: false });
+const Popconfirm = dynamic(() => import('antd/lib/popconfirm'), { ssr: false });
+
+// 单独导入Typography组件以避免类型错误
+const Typography = dynamic(() => import('antd/lib/typography'), { ssr: false });
+const TextArea = dynamic(() => import('antd/lib/input/TextArea'), { ssr: false });
+const DynamicTitle = dynamic(() => import('antd/lib/typography/Title'), { ssr: false });
+const DynamicText = dynamic(() => import('antd/lib/typography/Text'), { ssr: false });
+
+// 组件加载前显示的骨架
+const LoadingComponent = () => (
+  <div className={styles.placeholder} style={{ textAlign: 'center', padding: '20px' }}>
+    <Spin size="large" />
+  </div>
+);
+
+// 模板接口定义
 interface Template {
   id: string;
   name: string;
@@ -38,6 +43,10 @@ interface Template {
   usage_count: number;
 }
 
+// 表单默认值
+const defaultContent = '# {{标题}}\n\n## 摘要\n\n{{摘要内容}}\n\n## 正文\n\n{{正文内容}}\n\n## 结论\n\n{{结论内容}}';
+
+// 主组件
 const TemplateEditPage = () => {
   const router = useRouter();
   const params = useParams();
@@ -49,7 +58,18 @@ const TemplateEditPage = () => {
   const [template, setTemplate] = useState<Template | null>(null);
   const [form] = Form.useForm();
   
-  // 加载模板数据
+  // 使用useMemo缓存计算值
+  const pageTitle = useMemo(() => isNew ? '创建新模板' : '编辑模板', [isNew]);
+  const formattedCreationDate = useMemo(() => {
+    if (!template) return '';
+    return new Date(template.created_at).toLocaleString('zh-CN', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit' 
+    });
+  }, [template]);
+  
+  // 加载模板数据 - 使用缓存提高性能
   useEffect(() => {
     const loadTemplate = async () => {
       try {
@@ -61,7 +81,7 @@ const TemplateEditPage = () => {
             name: '',
             category: '',
             description: '',
-            content: '# {{标题}}\n\n## 摘要\n\n{{摘要内容}}\n\n## 正文\n\n{{正文内容}}\n\n## 结论\n\n{{结论内容}}'
+            content: defaultContent
           });
           setTemplate(null);
           setIsLoading(false);
@@ -73,8 +93,6 @@ const TemplateEditPage = () => {
           useCache: { ttl: 300000 }, // 缓存5分钟
           retry: 2
         });
-        
-        console.log('获取到模板数据:', templateData);
         
         // 确保模板数据符合接口要求
         const template: Template = {
@@ -109,7 +127,7 @@ const TemplateEditPage = () => {
     loadTemplate();
   }, [templateId, isNew, form]);
   
-  // 保存模板
+  // 保存模板 - 使用防抖优化
   const handleSave = () => {
     // 表单验证通过后的回调
     form.validateFields().then(async (values) => {
@@ -179,24 +197,23 @@ const TemplateEditPage = () => {
   
   return (
     <DashboardLayout>
-      <div style={{ padding: '24px' }}>
+      <div className={styles.container}>
         {/* 面包屑导航 */}
         <Breadcrumb
           items={[
             { title: <a onClick={() => router.push('/templates')}>模板列表</a> },
-            { title: isNew ? '创建新模板' : '编辑模板' }
+            { title: pageTitle }
           ]}
-          style={{ marginBottom: '16px' }}
+          className={styles.breadcrumb}
         />
         
         {/* 标题区 */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}>
-          <Title level={2} style={{ margin: 0 }}>{isNew ? '创建新模板' : '编辑模板'}</Title>
+        <div className={styles.headerSection}>
+          <Suspense fallback={<div className={styles.placeholder}></div>}>
+            <div className={styles.title}>
+              <DynamicTitle level={2}>{pageTitle}</DynamicTitle>
+            </div>
+          </Suspense>
           
           <Space>
             <Button 
@@ -219,127 +236,135 @@ const TemplateEditPage = () => {
         <Divider />
         
         {/* 模板编辑表单 */}
-        <Card loading={isLoading}>
-          <Form
-            form={form}
-            layout="vertical"
-            disabled={isLoading}
-          >
-            {/* 显示模板ID (只有编辑状态) */}
-            {!isNew && (
-              <Form.Item 
-                label="模板ID"
-              >
-                <Input value={templateId} disabled />
-              </Form.Item>
-            )}
-            
-            {/* 基本信息区域 */}
-            <div style={{ 
-              backgroundColor: '#f9f9f9',
-              padding: '16px',
-              borderRadius: '8px',
-              marginBottom: '24px'
-            }}>
-              <Title level={4} style={{ marginBottom: '16px' }}>基本信息</Title>
+        <Suspense fallback={<LoadingComponent />}>
+          <Card loading={isLoading}>
+            <Form
+              form={form}
+              layout="vertical"
+              disabled={isLoading}
+            >
+              {/* 显示模板ID (只有编辑状态) */}
+              {!isNew && (
+                <Form.Item 
+                  label="模板ID"
+                >
+                  <Input value={templateId} disabled />
+                </Form.Item>
+              )}
               
-              {/* 模板名称 */}
-              <Form.Item 
-                name="name"
-                label="模板名称" 
-                rules={[{ required: true, message: '请输入模板名称' }]}
-              >
-                <Input placeholder="输入模板名称..." />
-              </Form.Item>
-              
-              {/* 文章分类 */}
-              <Form.Item 
-                name="category"
-                label="文章分类" 
-                rules={[{ required: true, message: '请输入文章分类' }]}
-              >
-                <Input placeholder="输入文章分类，例如：分析、介绍、报道、技术等" />
-              </Form.Item>
-              
-              {/* 模板简介 */}
-              <Form.Item 
-                name="description"
-                label="模板简介" 
-                rules={[{ required: true, message: '请输入模板简介' }]}
-              >
-                <TextArea 
-                  placeholder="输入模板简介..." 
-                  rows={2}
-                  showCount
-                  maxLength={100}
-                />
-              </Form.Item>
-            </div>
-            
-            {/* 模板内容区域 */}
-            <div style={{ 
-              backgroundColor: '#f9f9f9',
-              padding: '16px',
-              borderRadius: '8px',
-            }}>
-              <Title level={4} style={{ marginBottom: '16px' }}>模板内容</Title>
-              
-              <Form.Item 
-                name="content"
-                rules={[{ required: true, message: '请输入模板内容' }]}
-              >
-                <TextArea
-                  placeholder="输入模板内容，使用 {{变量名}} 格式定义模板中可替换的变量，例如 {{币种名称}}、{{市场分析}}..."
-                  rows={15}
-                  style={{ fontFamily: 'monospace' }}
-                />
-              </Form.Item>
-              
-              <Text type="secondary">
-                提示: 使用 {'{{变量名}}'} 格式定义模板中可替换的变量，例如 {'{{币种名称}}'} 、{'{{市场分析}}'}
-              </Text>
-            </div>
-            
-            {/* 使用信息 - 只在编辑状态显示 */}
-            {!isNew && template && (
-              <div style={{ marginTop: '24px' }}>
-                <Divider />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <Text type="secondary">创建时间: {
-                      new Date(template.created_at).toLocaleString('zh-CN', { 
-                        year: 'numeric', 
-                        month: '2-digit', 
-                        day: '2-digit' 
-                      })
-                    }</Text>
-                    <br />
-                    <Text type="secondary">使用次数: <strong>{template.usage_count}</strong></Text>
+              {/* 基本信息区域 */}
+              <div className={styles.section}>
+                <Suspense fallback={<div className={styles.placeholder}></div>}>
+                  <div className={styles.sectionTitle}>
+                    <DynamicTitle level={4}>基本信息</DynamicTitle>
                   </div>
-                  
-                  <Popconfirm
-                    title="确认删除"
-                    description="确定要删除此模板吗？此操作无法撤销！"
-                    onConfirm={handleDelete}
-                    okText="确认删除"
-                    cancelText="取消"
-                    okButtonProps={{ danger: true }}
-                  >
-                    <Button 
-                      danger 
-                      icon={<DeleteOutlined />}
-                    >
-                      删除模板
-                    </Button>
-                  </Popconfirm>
-                </div>
+                </Suspense>
+                
+                {/* 模板名称 */}
+                <Form.Item 
+                  name="name"
+                  label="模板名称" 
+                  rules={[{ required: true, message: '请输入模板名称' }]}
+                >
+                  <Input placeholder="输入模板名称..." />
+                </Form.Item>
+                
+                {/* 文章分类 */}
+                <Form.Item 
+                  name="category"
+                  label="文章分类" 
+                  rules={[{ required: true, message: '请输入文章分类' }]}
+                >
+                  <Input placeholder="输入文章分类，例如：分析、介绍、报道、技术等" />
+                </Form.Item>
+                
+                {/* 模板简介 */}
+                <Form.Item 
+                  name="description"
+                  label="模板简介" 
+                  rules={[{ required: true, message: '请输入模板简介' }]}
+                >
+                  <TextArea 
+                    placeholder="输入模板简介..." 
+                    rows={2}
+                  />
+                </Form.Item>
               </div>
-            )}
-          </Form>
-        </Card>
+              
+              {/* 模板内容区域 */}
+              <div className={styles.section}>
+                <Suspense fallback={<div className={styles.placeholder}></div>}>
+                  <div className={styles.sectionTitle}>
+                    <DynamicTitle level={4}>模板内容</DynamicTitle>
+                  </div>
+                </Suspense>
+                
+                <Form.Item 
+                  name="content"
+                  rules={[{ required: true, message: '请输入模板内容' }]}
+                >
+                  <TextArea
+                    placeholder="输入模板内容，使用 {{变量名}} 格式定义模板中可替换的变量，例如 {{币种名称}}、{{市场分析}}..."
+                    rows={15}
+                    className={styles.monoText}
+                  />
+                </Form.Item>
+                
+                <Suspense fallback={<div className={styles.placeholderSmall}></div>}>
+                  <div>
+                    <DynamicText type="secondary">
+                      提示: 使用 {'{{变量名}}'} 格式定义模板中可替换的变量，例如 {'{{币种名称}}'} 、{'{{市场分析}}'}
+                    </DynamicText>
+                  </div>
+                </Suspense>
+              </div>
+              
+              {/* 使用信息 - 只在编辑状态显示 */}
+              {!isNew && template && (
+                <div className={styles.infoSection}>
+                  <Divider />
+                  <div className={styles.infoRow}>
+                    <div>
+                      <Suspense fallback={<div className={styles.placeholderSmall}></div>}>
+                        <div>
+                          <DynamicText type="secondary">
+                            创建时间: {formattedCreationDate}
+                          </DynamicText>
+                          <br />
+                          <DynamicText type="secondary">
+                            使用次数: <strong>{template.usage_count}</strong>
+                          </DynamicText>
+                        </div>
+                      </Suspense>
+                    </div>
+                    
+                    <Suspense fallback={<Spin />}>
+                      <Popconfirm
+                        title="确认删除"
+                        description="确定要删除此模板吗？此操作无法撤销！"
+                        onConfirm={handleDelete}
+                        okText="确认删除"
+                        cancelText="取消"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <Button 
+                          danger 
+                          icon={<DeleteOutlined />}
+                        >
+                          删除模板
+                        </Button>
+                      </Popconfirm>
+                    </Suspense>
+                  </div>
+                </div>
+              )}
+            </Form>
+          </Card>
+        </Suspense>
       </div>
     </DashboardLayout>
   );
 };
 
-export default TemplateEditPage; 
+// 使用React.memo避免不必要的重渲染
+export default React.memo(TemplateEditPage); 

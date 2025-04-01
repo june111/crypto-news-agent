@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Layout } from 'antd';
 import Sidebar from './Sidebar';
 import { colors } from '@/styles/theme';
-import preloadImports from '@/lib/utils/preloadComponents';
+import { preloadImports } from '@/lib/utils/preloadComponents';
 
 const { Content } = Layout;
 

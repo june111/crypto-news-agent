@@ -5,6 +5,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getSupabaseClient, MOCK_MODE } from '../supabase';
 import { safeQuery } from '../utils/queryBuilder';
+import { TRENDING_THRESHOLD } from '@/app/hot-topics/constants';
 
 // 热点话题类型定义
 export interface HotTopic {
@@ -15,6 +16,7 @@ export interface HotTopic {
   created_at?: string;   // 创建时间
   updated_at?: string;   // 更新时间
   related_articles?: any[]; // 相关文章
+  // status字段已从数据库移除，仅在前端使用
 }
 
 // 热点话题查询筛选条件
@@ -59,14 +61,16 @@ export async function createHotTopic(hotTopic: HotTopic): Promise<HotTopic | nul
     
     // 准备插入数据 - 严格匹配数据库实际字段
     const now = new Date().toISOString();
+    const volume = hotTopic.volume !== undefined ? Number(hotTopic.volume) : 0;
     const newTopic = {
       id: hotTopic.id || uuidv4(),
       keyword: hotTopic.keyword,
-      volume: hotTopic.volume !== undefined ? Number(hotTopic.volume) : 0,
+      volume: volume,
       source: hotTopic.source || null,
       created_at: hotTopic.created_at || now,
       updated_at: hotTopic.updated_at || now,
       related_articles: hotTopic.related_articles || []
+      // 移除status字段，数据库中不存在该列
     };
     
     console.log('待插入的数据:', JSON.stringify(newTopic, null, 2));
@@ -179,7 +183,7 @@ export async function getAllHotTopics(filter?: HotTopicFilter): Promise<HotTopic
         {
           id: 'mock-1',
           keyword: '模拟热点话题1',
-          volume: 1000,
+          volume: 9000,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           related_articles: []
@@ -187,7 +191,7 @@ export async function getAllHotTopics(filter?: HotTopicFilter): Promise<HotTopic
         {
           id: 'mock-2',
           keyword: '模拟热点话题2',
-          volume: 800,
+          volume: 4000,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           related_articles: []
@@ -205,7 +209,7 @@ export async function getAllHotTopics(filter?: HotTopicFilter): Promise<HotTopic
     console.log('成功获取热点话题数据，条数:', data.length);
     
     // 手动在内存中过滤数据
-    let filteredData = [...(data || [])];
+    let filteredData = [...data];
     
     // 应用筛选条件
     if (filter) {
@@ -239,10 +243,7 @@ export async function getAllHotTopics(filter?: HotTopicFilter): Promise<HotTopic
       }
     }
     
-    // 按搜索量降序排列
-    filteredData.sort((a, b) => (b.volume || 0) - (a.volume || 0));
-    
-    return filteredData as HotTopic[];
+    return filteredData;
   } catch (error) {
     console.error('获取热点话题列表异常:', error);
     return [];
@@ -392,7 +393,7 @@ export async function deleteHotTopic(id: string): Promise<boolean> {
 }
 
 /**
- * 将话题标记为趋势
+ * 设置话题为趋势
  * @param id 话题ID
  * @returns 更新后的话题
  */
@@ -403,7 +404,7 @@ export async function markTopicAsTrending(id: string): Promise<HotTopic | null> 
     const { data, error } = await safeQuery(supabase
       .from('hot_topics'))
       .update({
-        status: 'trending',
+        volume: TRENDING_THRESHOLD,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -434,7 +435,7 @@ export async function archiveTopic(id: string): Promise<HotTopic | null> {
     const { data, error } = await safeQuery(supabase
       .from('hot_topics'))
       .update({
-        status: 'archived',
+        volume: 0,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)

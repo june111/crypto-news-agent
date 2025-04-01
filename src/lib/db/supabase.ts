@@ -2,8 +2,10 @@
  * 数据库连接模块
  * 提供Supabase客户端实例
  */
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Article, AITask, Template, HotTopic, TABLES } from './schema';
+import { getSupabaseClient as getPooledClient, checkDatabaseHealth } from './connection-pool';
+import { logDebug, logWarning, logError } from './utils/logger';
 
 /**
  * 数据库类型定义
@@ -35,86 +37,42 @@ type Database = {
   };
 };
 
-/**
- * 模拟模式标志 - 只在本地环境下使用模拟数据
- * 修改为只检查MOCK_DB环境变量
- */
-export const MOCK_MODE = process.env.MOCK_DB === 'true';
+// 根据环境变量判断是否使用模拟模式
+export const MOCK_MODE = process.env.MOCK_DB === 'true' || 
+  process.env.NODE_ENV === 'test' || 
+  (process.env.NODE_ENV === 'development' && !process.env.SUPABASE_URL);
 
-// 创建Supabase客户端实例
-// const supabaseGlobalClient: SupabaseClient | null = null;
+// 模拟客户端单例
+let mockClient: any = null;
 
 /**
  * 获取Supabase客户端实例
- * 如果是开发环境且没有配置环境变量，返回模拟客户端
+ * 使用连接池管理，并支持模拟模式
  */
-export function getSupabaseClient() {
-  // 记录详细的环境变量状态（不泄露完整值）
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
-  
-  console.log('Supabase连接信息:', {
-    mockMode: MOCK_MODE,
-    urlConfigured: Boolean(supabaseUrl),
-    keyConfigured: Boolean(supabaseServiceKey),
-    urlPrefix: supabaseUrl ? `${supabaseUrl.substring(0, 8)}...` : 'undefined',
-    keyPrefix: supabaseServiceKey ? `${supabaseServiceKey.substring(0, 15)}...` : 'undefined',
-    nodeEnv: process.env.NODE_ENV,
-    debugMode: process.env.DEBUG_SUPABASE === 'true'
-  });
-  
+export function getSupabaseClient(): SupabaseClient | any {
   // 检查是否使用模拟模式
   if (MOCK_MODE) {
-    console.log('使用模拟Supabase客户端 (MOCK_MODE=true)');
-    return createMockClient();
-  }
-  
-  // 检查必要的配置参数
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('缺少Supabase必要配置!', {
-      missingUrl: !supabaseUrl,
-      missingKey: !supabaseServiceKey
-    });
-    
-    // 在开发环境中可以使用模拟客户端，但要记录警告
-    console.warn('在没有Supabase配置的情况下使用模拟客户端');
-    return createMockClient();
-  }
-  
-  try {
-    // 创建并返回Supabase客户端
-    console.log('尝试创建Supabase客户端...');
-    
-    // 打印更多连接信息以便调试
-    if (process.env.DEBUG_SUPABASE === 'true') {
-      console.log('Supabase URL:', supabaseUrl);
-      console.log('Supabase Key 前10个字符:', supabaseServiceKey.substring(0, 10) + '...');
+    if (mockClient) {
+      return mockClient;
     }
     
-    const client = createClient(supabaseUrl, supabaseServiceKey, {
-      db: {
-        schema: 'public'
-      },
-      auth: {
-        persistSession: false
-      },
-      // 添加更详细的日志
-      global: {
-        headers: {
-          'X-Client-Info': 'crypto-news-app'
-        }
-      }
-    });
-    
-    console.log('Supabase客户端创建成功, 尝试连接测试...');
-    return client;
-  } catch (error) {
-    console.error('创建Supabase客户端失败:', error);
-    
-    // 在发生错误时使用模拟客户端
-    console.warn('由于错误使用模拟客户端');
-    return createMockClient();
+    logDebug('使用模拟Supabase客户端 (MOCK_MODE=true)');
+    mockClient = createMockClient();
+    return mockClient;
   }
+  
+  // 使用连接池中的客户端实例
+  const client = getPooledClient();
+  
+  if (!client) {
+    logWarning('无法获取Supabase客户端，使用模拟客户端作为后备');
+    if (!mockClient) {
+      mockClient = createMockClient();
+    }
+    return mockClient;
+  }
+  
+  return client;
 }
 
 // 类型定义
@@ -148,8 +106,8 @@ function createMockClient() {
         { id: 'task-mock-2', type: 'content', status: 'pending' }
       ],
       hot_topics: [
-        { id: 'topic-mock-1', title: '模拟热门话题1', status: 'trending', score: 90 },
-        { id: 'topic-mock-2', title: '模拟热门话题2', status: 'active', score: 70 }
+        { id: 'topic-mock-1', title: '模拟热门话题1', score: 90 },
+        { id: 'topic-mock-2', title: '模拟热门话题2', score: 70 }
       ],
       embeddings: [
         { id: 'emb-mock-1', content: '模拟嵌入内容1', article_id: 'art-mock-1' },
@@ -165,7 +123,7 @@ function createMockClient() {
   global.__testItems = global.__testItems || {};
   const testItems = global.__testItems as MockData;
   
-  console.log('使用模拟数据库模式');
+  logDebug('使用模拟数据库模式');
   
   return {
     from: (table: string) => {
@@ -243,7 +201,7 @@ function createMockClient() {
           }
           
           testItems[table].push(data);
-          console.log(`添加了新${table}，ID: ${data.id}`);
+          logDebug(`添加了新${table}，ID: ${data.id}`);
           
           return {
             select: () => ({
@@ -368,21 +326,7 @@ function createMockClient() {
  * @returns 如果连接成功，返回true；否则返回false
  */
 export async function checkSupabaseConnection(): Promise<boolean> {
-  try {
-    const client = getSupabaseClient();
-    const { error } = await client.from('articles').select('id').limit(1);
-    
-    if (error) {
-      console.error("数据库连接测试失败:", error.message);
-      return false;
-    }
-    
-    console.log("数据库连接测试成功");
-    return true;
-  } catch (error) {
-    console.error("数据库连接测试出现异常:", error);
-    return false;
-  }
+  return await checkDatabaseHealth();
 }
 
 /**
@@ -396,15 +340,15 @@ export async function initDatabase(): Promise<boolean> {
     const { error } = await client.from('articles').select('id').limit(1);
     
     if (error && error.code === '42P01') {
-      console.log("数据库表不存在，初始化数据库...");
+      logDebug("数据库表不存在，初始化数据库...");
       // 在这里可以调用创建表的函数
       return true;
     } else {
-      console.log("数据库表已存在");
+      logDebug("数据库表已存在");
       return true;
     }
   } catch (error) {
-    console.error("数据库初始化失败:", error);
+    logError("数据库初始化失败", error);
     return false;
   }
 }
