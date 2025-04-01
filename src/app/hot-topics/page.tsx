@@ -135,28 +135,20 @@ const HotTopicsPage: React.FC = () => {
   const [isDetailVisible, setIsDetailVisible] = useState<boolean>(false);
   const [filterSource, setFilterSource] = useState<string>('');
   
-  // 页面加载状态
-  const [pageReady, setPageReady] = useState<boolean>(false);
-  
   // 使用antd的消息API
   const [messageApi, contextHolder] = message.useMessage();
   
   // 只在组件挂载时获取一次数据
   useEffect(() => {
-    // 设置一个短暂的延迟，模拟页面组件加载时间
-    const timer = setTimeout(() => {
-      setPageReady(false); // 初始化加载状态
-      fetchHotTopics();
-      loadSourceOptions();
-      
-      // 预加载添加热点组件，减少点击按钮后的延迟
-      const preloadAddTopicModal = () => {
-        import('./components/AddTopicModal');
-      };
-      preloadAddTopicModal();
-    }, 500);
+    // 立即开始获取数据，不再有延迟
+    fetchHotTopics();
+    loadSourceOptions();
     
-    return () => clearTimeout(timer);
+    // 预加载添加热点组件，减少点击按钮后的延迟
+    const preloadAddTopicModal = () => {
+      import('./components/AddTopicModal');
+    };
+    preloadAddTopicModal();
   }, []);
   
   // 从本地存储加载来源选项
@@ -192,6 +184,9 @@ const HotTopicsPage: React.FC = () => {
       // 使用新的API客户端获取数据
       const { data, success, error: apiError } = await api.get('hot-topics');
       
+      // 添加完整响应日志
+      console.log('API响应原始数据:', data);
+      
       if (!success || apiError) {
         throw new Error(apiError || '获取热点话题失败');
       }
@@ -203,42 +198,69 @@ const HotTopicsPage: React.FC = () => {
       
       if (Array.isArray(data)) {
         // 直接是数组格式
+        console.log('数据是数组格式');
         topicsData = data;
       } else if (data && typeof data === 'object') {
-        // 可能是 { topics: [...] } 或其他包含数组的对象格式
-        // 尝试找到对象中的数组属性
-        const possibleArrayProps = Object.values(data).filter(val => Array.isArray(val));
-        if (possibleArrayProps.length > 0) {
-          // 使用找到的第一个数组
-          topicsData = possibleArrayProps[0] as any[];
-        } else if (data && 'topics' in data && Array.isArray((data as any).topics)) {
-          // 明确检查是否有topics属性
-          topicsData = (data as any).topics;
-        } else if (data && 'data' in data && Array.isArray((data as any).data)) {
-          // 检查是否有data属性
-          topicsData = (data as any).data;
-        } else if (data && 'items' in data && Array.isArray((data as any).items)) {
-          // 检查是否有items属性
-          topicsData = (data as any).items;
-        } else if (data && 'results' in data && Array.isArray((data as any).results)) {
-          // 检查是否有results属性
-          topicsData = (data as any).results;
-        } else if (data && 'id' in data && 'keyword' in data) {
-          // 可能是单个热点对象
-          topicsData = [data];
+        // 打印对象的所有顶级属性
+        console.log('数据是对象格式，属性列表:', Object.keys(data));
+        
+        // API响应可能是 { topics: [...] } 格式
+        if (data.topics && Array.isArray(data.topics)) {
+          console.log('找到topics数组属性:', data.topics.length);
+          topicsData = data.topics;
+        } 
+        // 可能是其他包含数组的对象格式
+        else {
+          const possibleArrayProps = Object.values(data).filter(val => Array.isArray(val));
+          console.log('找到的数组属性数量:', possibleArrayProps.length);
+          
+          if (possibleArrayProps.length > 0) {
+            // 使用找到的第一个数组
+            topicsData = possibleArrayProps[0] as any[];
+            console.log('使用第一个数组属性，长度:', topicsData.length);
+          } else if (data && 'data' in data && Array.isArray((data as any).data)) {
+            // 检查是否有data属性
+            console.log('使用data属性数组');
+            topicsData = (data as any).data;
+          } else if (data && 'items' in data && Array.isArray((data as any).items)) {
+            // 检查是否有items属性
+            console.log('使用items属性数组');
+            topicsData = (data as any).items;
+          } else if (data && 'results' in data && Array.isArray((data as any).results)) {
+            // 检查是否有results属性
+            console.log('使用results属性数组');
+            topicsData = (data as any).results;
+          } else if (data && 'id' in data && 'keyword' in data) {
+            // 可能是单个热点对象
+            console.log('数据似乎是单个对象，转换为数组');
+            topicsData = [data];
+          }
         }
       }
       
-      if (topicsData.length > 0) {
-        const formattedTopics: DisplayHotTopic[] = topicsData.map(item => ({
-          id: item.id || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-          keyword: item.keyword || item.title || '',
-          volume: item.volume || item.score || item.views || 0,
-          date: item.date || (item.created_at ? new Date(item.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
-          source: item.source || '未知来源',
-          // 前端计算status，仅用于UI显示
-          status: (item.volume >= TRENDING_THRESHOLD || item.score >= TRENDING_THRESHOLD) ? 'trending' : 'active'
-        }));
+      console.log('解析后的topicsData:', topicsData);
+      
+      if (topicsData && topicsData.length > 0) {
+        console.log('开始格式化数据，样本第一项:', topicsData[0]);
+        
+        const formattedTopics: DisplayHotTopic[] = topicsData.map((item, index) => {
+          console.log(`格式化第${index+1}项:`, item);
+          
+          const formattedItem = {
+            id: item.id || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            keyword: item.keyword || item.title || '',
+            volume: typeof item.volume !== 'undefined' ? Number(item.volume) : (item.score ? Number(item.score) : 0),
+            date: item.date || (item.created_at ? new Date(item.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+            source: item.source || '未知来源',
+            // 前端计算status，仅用于UI显示
+            status: (Number(item.volume) >= TRENDING_THRESHOLD || Number(item.score) >= TRENDING_THRESHOLD) ? 'trending' : 'active'
+          };
+          
+          console.log(`第${index+1}项格式化结果:`, formattedItem);
+          return formattedItem;
+        });
+        
+        console.log('格式化后的topics:', formattedTopics);
         setTopics(formattedTopics);
         console.log('成功获取热点话题数据，条数:', formattedTopics.length);
       } else {
@@ -254,7 +276,6 @@ const HotTopicsPage: React.FC = () => {
       setTopics(EXAMPLE_HOT_TOPICS.slice(0, 2)); // 只使用前两个示例数据
     } finally {
       setLoading(false);
-      setPageReady(true); // 设置页面准备就绪
     }
   };
   
@@ -513,28 +534,6 @@ const HotTopicsPage: React.FC = () => {
     };
   }, [topics]);
   
-  // 如果页面未准备就绪，显示骨架屏
-  if (!pageReady) {
-    return (
-      <DashboardLayout>
-        {contextHolder}
-        <Spin 
-          tip="加载热点话题数据中..."
-          size="large"
-          style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 1000
-          }}
-        >
-          <PageSkeleton />
-        </Spin>
-      </DashboardLayout>
-    );
-  }
-  
   return (
     <DashboardLayout>
       {contextHolder}
@@ -549,30 +548,42 @@ const HotTopicsPage: React.FC = () => {
                 <Title level={2} style={{ margin: 0 }}>热点列表</Title>
                 <Text type="secondary">
                   跟踪和管理加密货币相关热点话题，了解最新趋势
-        </Text>
+                </Text>
               </div>
-          </Col>
-          <Col>
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />}
-              onClick={handleAddHotTopic}
+            </Col>
+            <Col>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />}
+                onClick={handleAddHotTopic}
                 size="large"
                 style={{ 
                   borderRadius: '6px',
                   boxShadow: '0 2px 0 rgba(0, 0, 0, 0.045)'
                 }}
-            >
-              添加热点
-            </Button>
-          </Col>
-        </Row>
+              >
+                添加热点
+              </Button>
+            </Col>
+          </Row>
         </div>
         
-        {/* 统计卡片区域 - 懒加载 */}
-        <Suspense fallback={<Skeleton active paragraph={{ rows: 1 }} />}>
-          <StatisticsCards statistics={statistics} />
-        </Suspense>
+        {/* 统计卡片区域 - 加载中状态 */}
+        {loading ? (
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            {[1, 2, 3].map(i => (
+              <Col xs={24} sm={8} key={i}>
+                <Card variant="borderless" style={{ borderRadius: '8px', overflow: 'hidden' }}>
+                  <Skeleton active paragraph={{ rows: 1 }} />
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        ) : (
+          <Suspense fallback={<Skeleton active paragraph={{ rows: 1 }} />}>
+            <StatisticsCards statistics={statistics} />
+          </Suspense>
+        )}
         
         <Divider style={{ margin: '24px 0' }} />
         
@@ -618,31 +629,35 @@ const HotTopicsPage: React.FC = () => {
             boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)'
           }}
         >
-        <Table 
-            rowKey="id"
-            dataSource={filteredData}
-          columns={columns}
-            loading={loading}
-          pagination={{
-            defaultPageSize: 10,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50'],
-              showTotal: (total) => `共 ${total} 条热点数据`,
-              style: { marginTop: 16 }
-            }}
-            rowClassName={getRowClassName}
-            locale={{
-              emptyText: <Empty 
-                description={searchKeyword ? '没有找到匹配的热点数据' : '暂无热点数据'} 
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            }}
-            className="hot-topics-table"
-            onRow={(record) => ({
-              onClick: () => handleViewTopic(record),
-              style: { cursor: 'pointer' }
-            })}
-          />
+          {loading ? (
+            <Skeleton active paragraph={{ rows: 10 }} />
+          ) : (
+            <Table 
+              rowKey="id"
+              dataSource={filteredData}
+              columns={columns}
+              loading={loading}
+              pagination={{
+                defaultPageSize: 10,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50'],
+                showTotal: (total) => `共 ${total} 条热点数据`,
+                style: { marginTop: 16 }
+              }}
+              rowClassName={getRowClassName}
+              locale={{
+                emptyText: <Empty 
+                  description={searchKeyword ? '没有找到匹配的热点数据' : '暂无热点数据'} 
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
+              }}
+              className="hot-topics-table"
+              onRow={(record) => ({
+                onClick: () => handleViewTopic(record),
+                style: { cursor: 'pointer' }
+              })}
+            />
+          )}
         </Card>
         
         {/* 热点话题详情抽屉 */}

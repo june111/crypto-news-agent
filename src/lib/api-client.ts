@@ -93,7 +93,7 @@ async function apiClient<T = any>(
     
     // 构建结果
     const result: ApiResponse<T> = {
-      data: data?.data,
+      data: data,
       error: data?.error || error,
       success: response.ok && !error && (data?.success !== false),
       statusCode: response.status
