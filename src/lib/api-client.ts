@@ -1,16 +1,17 @@
 /**
- * 统一的API请求客户端
- * 提供更一致和可追踪的API请求方式
+ * API请求客户端
+ * 统一处理API请求，支持错误处理和请求跟踪
  */
-import { logError, logDebug } from './db/utils/logger';
+import { logDebug, logInfo, logError } from './db/utils/logger';
 
 /**
  * API响应类型
  */
-export interface ApiResponse<T> {
+export interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   success: boolean;
+  statusCode?: number;
 }
 
 /**
@@ -18,26 +19,41 @@ export interface ApiResponse<T> {
  */
 export interface ApiClientOptions extends RequestInit {
   skipErrorHandling?: boolean;
+  requestId?: string;
 }
 
 /**
  * 生成唯一的请求ID
  */
 function generateRequestId(): string {
-  return `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  return `api-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
 /**
- * 执行API请求
- * @param endpoint API端点（不包含/api/前缀）
- * @param options 请求选项
- * @returns 响应数据
+ * 通用API请求函数
  */
-export async function apiClient<T = unknown>(
+async function apiClient<T = any>(
   endpoint: string, 
   options: ApiClientOptions = {}
 ): Promise<ApiResponse<T>> {
-  const requestId = generateRequestId();
+  // 生成唯一请求ID或使用传入的ID
+  const requestId = options.requestId || generateRequestId();
+  
+  // 默认请求头
+  const headers = new Headers(options.headers);
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  
+  // 添加跟踪ID
+  headers.set('x-request-id', requestId);
+  
+  // 设置用于数据库连接复用的头
+  if (options.requestId) {
+    headers.set('x-db-request-id', options.requestId);
+  }
+  
+  // 请求开始时间
   const startTime = Date.now();
   
   // 构建完整URL
@@ -45,87 +61,77 @@ export async function apiClient<T = unknown>(
     ? `/api${endpoint}` 
     : `/api/${endpoint}`;
   
-  // 准备请求头
-  const headers = new Headers(options.headers);
-  headers.set('Content-Type', 'application/json');
-  headers.set('x-request-id', requestId);
-  headers.set('x-page-request', '1');
-  
-  // 完整请求配置
-  const config: RequestInit = {
-    ...options,
-    headers,
-  };
-  
-  // 记录请求开始
-  logDebug(`API请求开始: ${options.method || 'GET'} ${url}`, { requestId });
+  // 记录请求
+  logInfo(`API请求: ${options.method || 'GET'} ${url}`, { 
+    requestId, 
+    method: options.method || 'GET',
+    url
+  });
   
   try {
     // 发送请求
-    const response = await fetch(url, config);
-    const duration = Date.now() - startTime;
-    
-    // 获取响应内容
-    let responseData: any;
-    const responseText = await response.text();
-    
-    try {
-      // 尝试解析JSON响应
-      responseData = responseText ? JSON.parse(responseText) : {};
-    } catch (e) {
-      // 如果不是有效的JSON
-      logError(`API响应不是有效的JSON: ${url}`, { 
-        requestId, 
-        responseText: responseText.substring(0, 100) 
-      });
-      
-      return { 
-        success: false, 
-        error: `服务器返回了无效的数据格式 (${response.status})` 
-      };
-    }
-    
-    // 根据状态码处理响应
-    if (!response.ok && !options.skipErrorHandling) {
-      const errorMessage = responseData.error || `请求失败 (${response.status})`;
-      logError(`API请求失败: ${url}`, { 
-        requestId, 
-        status: response.status,
-        error: errorMessage,
-        duration 
-      });
-      
-      return {
-        success: false,
-        error: errorMessage
-      };
-    }
-    
-    // 记录请求成功
-    logDebug(`API请求成功: ${url}`, { 
-      requestId, 
-      status: response.status,
-      duration 
+    const response = await fetch(url, {
+      ...options,
+      headers,
     });
     
-    // 返回成功响应
-    return {
-      data: responseData,
-      success: true
-    };
-  } catch (error) {
-    // 处理网络错误等
-    const errorMessage = error instanceof Error ? error.message : '网络请求失败';
+    // 解析响应
+    let data: any = null;
+    let error: string | undefined = undefined;
     
-    logError(`API请求异常: ${url}`, { 
-      requestId, 
-      error, 
-      duration: Date.now() - startTime 
+    try {
+      data = await response.json();
+    } catch (e) {
+      error = '无效的JSON响应';
+      logError('API解析错误', { 
+        requestId, 
+        error: e,
+        url,
+        status: response.status
+      });
+    }
+    
+    // 构建结果
+    const result: ApiResponse<T> = {
+      data: data?.data,
+      error: data?.error || error,
+      success: response.ok && !error && (data?.success !== false),
+      statusCode: response.status
+    };
+    
+    // 记录响应时间
+    const duration = Date.now() - startTime;
+    
+    // 记录请求完成
+    if (result.success) {
+      logInfo(`API请求成功: ${options.method || 'GET'} ${url}`, { 
+        requestId,
+        duration,
+        status: response.status
+      });
+    } else {
+      logError(`API请求失败: ${options.method || 'GET'} ${url}`, { 
+        requestId,
+        duration,
+        status: response.status,
+        error: result.error
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    // 记录网络错误
+    const duration = Date.now() - startTime;
+    logError(`API网络错误: ${options.method || 'GET'} ${url}`, { 
+      requestId,
+      duration,
+      error
     });
     
     return {
       success: false,
-      error: errorMessage
+      error: '网络请求失败',
+      statusCode: 0
     };
   }
 }
@@ -133,50 +139,63 @@ export async function apiClient<T = unknown>(
 /**
  * GET请求
  */
-export function get<T = unknown>(endpoint: string, options: ApiClientOptions = {}) {
+export function get<T = any>(endpoint: string, options: ApiClientOptions = {}): Promise<ApiResponse<T>> {
   return apiClient<T>(endpoint, { 
     ...options, 
-    method: 'GET' 
+    method: 'GET',
+    requestId: options.requestId || headers.get('x-request-id')
   });
 }
 
 /**
  * POST请求
  */
-export function post<T = unknown>(endpoint: string, data: unknown, options: ApiClientOptions = {}) {
+export function post<T = any>(endpoint: string, data: any, options: ApiClientOptions = {}): Promise<ApiResponse<T>> {
   return apiClient<T>(endpoint, { 
     ...options, 
     method: 'POST',
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    requestId: options.requestId || headers.get('x-request-id')
   });
 }
 
 /**
  * PUT请求
  */
-export function put<T = unknown>(endpoint: string, data: unknown, options: ApiClientOptions = {}) {
+export function put<T = any>(endpoint: string, data: any, options: ApiClientOptions = {}): Promise<ApiResponse<T>> {
   return apiClient<T>(endpoint, { 
     ...options, 
     method: 'PUT',
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    requestId: options.requestId || headers.get('x-request-id')
   });
 }
 
 /**
  * DELETE请求
  */
-export function del<T = unknown>(endpoint: string, options: ApiClientOptions = {}) {
+export function del<T = any>(endpoint: string, options: ApiClientOptions = {}): Promise<ApiResponse<T>> {
   return apiClient<T>(endpoint, { 
     ...options, 
-    method: 'DELETE' 
+    method: 'DELETE',
+    requestId: options.requestId || headers.get('x-request-id')
   });
 }
 
-// 默认导出所有方法
-export default {
-  get,
-  post,
-  put,
-  delete: del,
-  request: apiClient
-}; 
+// 获取当前请求的头信息
+function getHeadersObject(): Record<string, string> {
+  if (typeof window === 'undefined') {
+    // 服务器环境
+    return {};
+  }
+  
+  // 客户端环境 - 尝试获取当前请求ID
+  return {};
+}
+
+// 获取当前请求头
+const headers = new Headers(getHeadersObject());
+
+// 导出默认对象
+const api = { get, post, put, delete: del };
+export default api; 

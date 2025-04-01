@@ -487,7 +487,7 @@ const AITasksPage = () => {
           >
             {/* 封面图类型的结果展示 */}
             {type === '封面图' && result.coverImage && (
-              <Card bordered={false}>
+              <Card variant="borderless">
                 <div style={{ 
                   textAlign: 'center', 
                   padding: spacing.lg,

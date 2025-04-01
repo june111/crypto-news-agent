@@ -79,7 +79,7 @@ const ArticleFilters: React.FC<ArticleFiltersProps> = ({
 
   return (
     <Card 
-      bordered={false}
+      variant="borderless"
       className={styles.searchBox}
       title={
         <div className={styles.searchHeader}>

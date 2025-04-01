@@ -16,7 +16,7 @@ const StatisticsCards: React.FC<StatisticsCardsProps> = ({ stats }) => {
   return (
     <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
       <Col xs={24} sm={12} md={6}>
-        <Card bordered={false} style={{ borderRadius: '8px', height: '100%' }}>
+        <Card variant="borderless" style={{ borderRadius: '8px', height: '100%' }}>
           <Statistic 
             title="文章总数" 
             value={stats.total} 
@@ -27,7 +27,7 @@ const StatisticsCards: React.FC<StatisticsCardsProps> = ({ stats }) => {
       </Col>
       
       <Col xs={24} sm={12} md={6}>
-        <Card bordered={false} style={{ borderRadius: '8px', height: '100%' }}>
+        <Card variant="borderless" style={{ borderRadius: '8px', height: '100%' }}>
           <Statistic 
             title="待审核" 
             value={stats.pendingCount} 
@@ -38,7 +38,7 @@ const StatisticsCards: React.FC<StatisticsCardsProps> = ({ stats }) => {
       </Col>
       
       <Col xs={24} sm={12} md={6}>
-        <Card bordered={false} style={{ borderRadius: '8px', height: '100%' }}>
+        <Card variant="borderless" style={{ borderRadius: '8px', height: '100%' }}>
           <Statistic 
             title="已发布" 
             value={stats.publishedCount} 
@@ -49,7 +49,7 @@ const StatisticsCards: React.FC<StatisticsCardsProps> = ({ stats }) => {
       </Col>
       
       <Col xs={24} sm={12} md={6}>
-        <Card bordered={false} style={{ borderRadius: '8px', height: '100%' }}>
+        <Card variant="borderless" style={{ borderRadius: '8px', height: '100%' }}>
           <Statistic 
             title="有问题的文章" 
             value={stats.rejectedCount + stats.failedCount} 

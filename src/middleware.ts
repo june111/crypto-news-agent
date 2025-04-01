@@ -20,16 +20,25 @@ export function middleware(request: NextRequest) {
     headers.set('Pragma', 'no-cache');
     headers.set('Expires', '0');
     
-    // 向API请求添加页面请求标识符
-    headers.set('x-page-request', '1');
+    // 添加性能监控头
+    headers.set('x-request-start', Date.now().toString());
+    headers.set('x-request-path', request.nextUrl.pathname);
+    
+    // 为数据库连接复用添加请求ID
+    headers.set('x-db-request-id', requestId);
   }
   
   // 继续请求处理，但使用修改后的请求头
-  return NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers
     }
   });
+  
+  // 设置响应头以支持客户端请求跟踪
+  response.headers.set('x-response-id', requestId);
+  
+  return response;
 }
 
 // 配置中间件适用的路由

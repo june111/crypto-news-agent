@@ -315,7 +315,7 @@ const TemplatesPage = () => {
         {!loading && (
           <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
             <Col xs={24} sm={8}>
-              <Card bordered={false} className={styles.statCard}>
+              <Card variant="borderless" className={styles.statCard}>
                 <Statistic 
                   title="模板总数" 
                   value={statistics.totalTemplates} 
@@ -326,7 +326,7 @@ const TemplatesPage = () => {
             </Col>
             
             <Col xs={24} sm={8}>
-              <Card bordered={false} className={styles.statCard}>
+              <Card variant="borderless" className={styles.statCard}>
                 <Statistic 
                   title="分类数量" 
                   value={statistics.categoriesCount} 
@@ -337,7 +337,7 @@ const TemplatesPage = () => {
             </Col>
             
             <Col xs={24} sm={8}>
-              <Card bordered={false} className={styles.statCard}>
+              <Card variant="borderless" className={styles.statCard}>
                 <Statistic 
                   title="总使用次数" 
                   value={statistics.totalUsage} 
@@ -351,7 +351,7 @@ const TemplatesPage = () => {
         
         {/* 搜索条件区域 */}
         <Card 
-          bordered={false}
+          variant="borderless"
           className={styles.searchBox}
         >
           <Form layout="vertical" className={styles.searchForm}>

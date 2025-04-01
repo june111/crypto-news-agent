@@ -4,7 +4,11 @@
  */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Article, AITask, Template, HotTopic, TABLES } from './schema';
-import { getSupabaseClient as getPooledClient, checkDatabaseHealth } from './connection-pool';
+import { 
+  getSupabaseClient as getPooledClient, 
+  getSupabaseClientForRequest,
+  checkDatabaseHealth 
+} from './connection-pool';
 import { logDebug, logWarning, logError } from './utils/logger';
 
 /**
@@ -48,8 +52,9 @@ let mockClient: any = null;
 /**
  * 获取Supabase客户端实例
  * 使用连接池管理，并支持模拟模式
+ * @param requestId 可选的请求ID，用于连接复用
  */
-export function getSupabaseClient(): SupabaseClient | any {
+export function getSupabaseClient(requestId?: string): SupabaseClient | any {
   // 检查是否使用模拟模式
   if (MOCK_MODE) {
     if (mockClient) {
@@ -61,7 +66,15 @@ export function getSupabaseClient(): SupabaseClient | any {
     return mockClient;
   }
   
-  // 使用连接池中的客户端实例
+  // 优先使用基于请求ID的连接复用
+  if (requestId) {
+    const requestClient = getSupabaseClientForRequest(requestId);
+    if (requestClient) {
+      return requestClient;
+    }
+  }
+  
+  // 其次使用全局连接池
   const client = getPooledClient();
   
   if (!client) {
@@ -323,32 +336,53 @@ function createMockClient() {
 
 /**
  * 检查Supabase连接状态
- * @returns 如果连接成功，返回true；否则返回false
+ * @param requestId 可选的请求ID
  */
-export async function checkSupabaseConnection(): Promise<boolean> {
-  return await checkDatabaseHealth();
+export async function checkSupabaseConnection(requestId?: string): Promise<boolean> {
+  const client = getSupabaseClient(requestId);
+  return client ? await checkDatabaseHealth() : false;
 }
 
 /**
- * 初始化数据库连接
+ * 初始化数据库
+ * @param requestId 可选的请求ID
  */
-export async function initDatabase(): Promise<boolean> {
+export async function initDatabase(requestId?: string): Promise<boolean> {
   try {
-    const client = getSupabaseClient();
+    // 使用请求ID获取客户端，确保连接复用
+    const client = getSupabaseClient(requestId);
     
-    // 选择一个表检查是否存在
-    const { error } = await client.from('articles').select('id').limit(1);
-    
-    if (error && error.code === '42P01') {
-      logDebug("数据库表不存在，初始化数据库...");
-      // 在这里可以调用创建表的函数
-      return true;
-    } else {
-      logDebug("数据库表已存在");
-      return true;
+    if (!client) {
+      logError('数据库初始化失败: 无法获取客户端', { requestId });
+      return false;
     }
+    
+    // 简化表检查逻辑，使用更可靠的方法检查表是否存在
+    // 使用简单的查询尝试访问表，而不是查询information_schema.tables
+    const tableChecks = await Promise.allSettled(
+      Object.values(TABLES).map(table => 
+        client.from(table).select('*').limit(1)
+      )
+    );
+    
+    // 检查是否有表访问失败
+    const missingTables = Object.values(TABLES).filter((table, index) => {
+      const result = tableChecks[index];
+      return result.status === 'rejected' || 
+             (result.status === 'fulfilled' && result.value.error && 
+              result.value.error.code === '42P01'); // PostgreSQL table doesn't exist error
+    });
+    
+    if (missingTables.length > 0) {
+      logWarning(`可能缺少表: ${missingTables.join(', ')}`, { requestId });
+      // 这里可以添加自动创建表的逻辑
+    } else {
+      logDebug('数据库表检查完成，所有表可访问', { requestId });
+    }
+    
+    return true;
   } catch (error) {
-    logError("数据库初始化失败", error);
+    logError('数据库初始化错误', { error, requestId });
     return false;
   }
 }
