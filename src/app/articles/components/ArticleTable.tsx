@@ -1,5 +1,4 @@
 import React from 'react';
-import Image from 'next/image';
 import { 
   Table, 
   Button, 
@@ -7,7 +6,9 @@ import {
   Tooltip, 
   Popconfirm, 
   Empty,
-  Skeleton
+  Skeleton,
+  Image,
+  Space
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { 
@@ -15,8 +16,10 @@ import {
   EditOutlined, 
   DeleteOutlined, 
   CheckOutlined, 
+  CloseOutlined,
   ExportOutlined,
-  PlusOutlined
+  PlusOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 
 import styles from '../articles.module.css';
@@ -33,6 +36,8 @@ const getStatusColor = (status: ArticleStatus) => {
       return 'error';
     case '发布失败':
       return 'warning';
+    case '已下架':
+      return 'default';
     default:
       return 'default';
   }
@@ -64,6 +69,10 @@ interface ArticleTableProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onReview: (id: string) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  onResend: (id: string) => void;
+  onTakeDown: (id: string) => void;
 }
 
 const ArticleTable: React.FC<ArticleTableProps> = ({
@@ -71,27 +80,60 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
   loading,
   onEdit,
   onDelete,
-  onReview
+  onReview,
+  onApprove,
+  onReject,
+  onResend,
+  onTakeDown
 }) => {
   
   // 表格列定义
   const columns: ColumnsType<Article> = [
     {
-      title: '日期',
-      dataIndex: 'date',
-      key: 'date',
-      width: 120,
-      render: (date: string) => (
-        <span>
-          <CalendarOutlined style={{ marginRight: 4, opacity: 0.5 }} />
-          {date}
-        </span>
-      ),
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      width: 160,
+      sorter: (a, b) => {
+        if (!a.updatedAt) return -1;
+        if (!b.updatedAt) return 1;
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      },
+      sortDirections: ['descend', 'ascend'],
+      defaultSortOrder: 'descend',
+      render: (updatedAt: string, record: Article) => {
+        // 优先使用updatedAt，如果不存在则使用date或创建时间
+        const timeString = updatedAt || record.date || record.createdAt || '';
+        if (!timeString) return <span>-</span>;
+        
+        // 格式化日期时间
+        const date = new Date(timeString);
+        const formattedDate = date.toLocaleDateString('zh-CN', { 
+          year: 'numeric', 
+          month: '2-digit', 
+          day: '2-digit' 
+        });
+        
+        const formattedTime = date.toLocaleTimeString('zh-CN', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        return (
+          <Tooltip title={`最后更新: ${timeString}`}>
+            <span>
+              <CalendarOutlined style={{ marginRight: 4, opacity: 0.5 }} />
+              {formattedDate} {formattedTime}
+            </span>
+          </Tooltip>
+        );
+      },
     },
     {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
+      width: 250,
       ellipsis: {
         showTitle: false,
       },
@@ -107,17 +149,40 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
       title: '封面图',
       dataIndex: 'coverImage',
       key: 'coverImage',
-      width: 120,
-      render: (coverImage: string) => (
-        <div className={styles.tableImage}>
-          <Image 
-            src={coverImage} 
-            alt="封面"
-            fill
-            style={{ objectFit: 'cover' }}
-          />
-        </div>
-      ),
+      width: 100,
+      render: (coverImage: string) => {
+        // 更可靠的图片源检查
+        if (!coverImage || coverImage.trim() === '') {
+          // 如果没有图片，显示占位符
+          return (
+            <div className={styles.tableImage} style={{ 
+              backgroundColor: '#f5f5f5', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}>
+              <span style={{ color: '#999', fontSize: '12px' }}>无封面</span>
+            </div>
+          );
+        }
+          
+        // 使用Ant Design的Image组件，支持预览
+        return (
+          <div className={styles.tableImage}>
+            <Image 
+              src={coverImage}
+              alt="文章封面"
+              width={80}
+              height={60}
+              style={{ objectFit: 'cover', borderRadius: '4px' }}
+              preview={{
+                maskClassName: styles.imageMask,
+                mask: <div><EyeOutlined /> 预览</div>
+              }}
+            />
+          </div>
+        );
+      },
     },
     {
       title: '关键词',
@@ -152,62 +217,83 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
     {
       title: '操作',
       key: 'actions',
-      width: 280,
+      width: 320,
       fixed: 'right',
       render: (_: unknown, record: Article) => (
         <div className={styles.tableActions}>
-          <Button 
-            size="small"
-            type="primary"
-            ghost
-            icon={<EditOutlined />}
-            onClick={() => onEdit(record.id)}
-            className={styles.tableActionButton}
-          >
-            编辑
-          </Button>
-          
-          <Popconfirm
-            title="确认删除"
-            description={`确定要删除此文章吗？此操作无法撤销。`}
-            onConfirm={() => onDelete(record.id)}
-            okText="确认删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
+          <Space size="small">
             <Button 
-              danger 
               size="small"
-              icon={<DeleteOutlined />}
+              type="primary"
+              ghost
+              icon={<EditOutlined />}
+              onClick={() => onEdit(record.id)}
               className={styles.tableActionButton}
             >
-              删除
+              编辑
             </Button>
-          </Popconfirm>
-          
-          {record.status === '待审核' && (
-            <Button 
-              type="primary" 
-              size="small"
-              icon={<CheckOutlined />}
-              onClick={() => onReview(record.id)}
-              className={styles.tableActionButton}
+            
+            <Popconfirm
+              title="确认删除"
+              description={`确定要删除此文章吗？此操作无法撤销。`}
+              onConfirm={() => onDelete(record.id)}
+              okText="确认删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
             >
-              审核
-            </Button>
-          )}
-          
-          {record.status === '发布失败' && (
-            <Button 
-              type="primary" 
-              size="small"
-              icon={<ExportOutlined />}
-              onClick={() => onReview(record.id)}
-              className={styles.tableActionButton}
-            >
-              重发
-            </Button>
-          )}
+              <Button 
+                danger 
+                size="small"
+                icon={<DeleteOutlined />}
+                className={styles.tableActionButton}
+              >
+                删除
+              </Button>
+            </Popconfirm>
+            
+            {record.status === '待审核' && (
+              <Button 
+                type="primary" 
+                size="small"
+                icon={<CheckOutlined />}
+                onClick={() => onReview(record.id)}
+                className={styles.tableActionButton}
+              >
+                审核
+              </Button>
+            )}
+            
+            {record.status === '已发布' && (
+              <Popconfirm
+                title="确认下架"
+                description="确定要下架此文章吗？下架后将不再对用户展示"
+                onConfirm={() => onTakeDown(record.id)}
+                okText="确认下架"
+                cancelText="取消"
+              >
+                <Button 
+                  size="small"
+                  style={{ backgroundColor: '#faad14', borderColor: '#faad14', color: '#fff' }}
+                  icon={<CloseOutlined />}
+                  className={styles.tableActionButton}
+                >
+                  下架
+                </Button>
+              </Popconfirm>
+            )}
+            
+            {record.status === '发布失败' && (
+              <Button 
+                type="primary" 
+                size="small"
+                icon={<ExportOutlined />}
+                onClick={() => onResend(record.id)}
+                className={styles.tableActionButton}
+              >
+                重发
+              </Button>
+            )}
+          </Space>
         </div>
       ),
     },
@@ -231,7 +317,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
             pageSizeOptions: ['10', '20', '50'],
             showTotal: (total) => `共 ${total} 条数据`,
           }}
-          scroll={{ x: 1300 }}
+          scroll={{ x: 1500 }}
           size="middle"
           locale={{
             emptyText: (

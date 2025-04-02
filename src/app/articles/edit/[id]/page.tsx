@@ -1,574 +1,405 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import dynamic from 'next/dynamic';
-import NextHead from 'next/head';
-
-// 导入CSS模块
-import styles from '../../articles.module.css';
-
-// 核心组件立即导入 - 绝对最小化导入数量
-import { 
-  Button, Form, message, Layout, Input, Select,
-  Spin, Space, Divider, Breadcrumb, Card
-} from 'antd';
-import { ArrowLeftOutlined, SaveOutlined, PlusOutlined } from '@ant-design/icons';
+import { notification, Spin, message } from 'antd';
+import ArticleForm from '../components/ArticleForm';
+import LoadingScreen from '../components/LoadingScreen';
 import DashboardLayout from '@/components/DashboardLayout';
-import fetchWithCache from '@/lib/utils/fetchUtils';
-import { ArticleStatus, ARTICLE_CATEGORIES } from '@/types/article';
+import { isValidUUID } from '@/utils/uuid';
 
-// 基础UI元素
-const { Content } = Layout;
-const { TextArea } = Input;
-const { Option } = Select;
-
-// 超级懒加载富文本编辑器 - 只在真正需要时加载
-// 使用独立chunk避免影响主bundle
-const RichTextEditor = dynamic(
-  () => import('./components/RichTextEditor').then(mod => mod.default),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className={styles.editorContainer}>
-        <div className={styles.editor} style={{minHeight: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-          <Spin size="large" tip="正在加载编辑器..." />
-        </div>
-      </div>
-    )
-  }
-);
-
-// 核心组件预加载
-const LoadingComponent = () => (
-  <div style={{ textAlign: 'center', padding: '40px 0' }}>
-    <Spin size="large" />
-    <div style={{ marginTop: '16px' }}>加载中...</div>
-  </div>
-);
-
-// 文章数据类型
-interface Article {
+interface ArticleData {
   id: string;
   title: string;
   summary: string;
   content: string;
-  category: string;
-  date: string;
   coverImage: string;
-  keywords: string[];
-  status: ArticleStatus;
-  createdAt: string;
+  tags: string[];
+  status: 'draft' | 'published';
+  category: string;
+  author: string;
+  templateId?: string;
+  hotTopicId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
 }
 
-// 简化的标签组件
-const TagDisplay = ({ 
-  tags = [], 
-  onAdd, 
-  onRemove 
-}: { 
-  tags: string[], 
-  onAdd: (tag: string) => void, 
-  onRemove: (tag: string) => void 
-}) => {
-  const [inputVisible, setInputVisible] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
-  };
-
-  const handleInputConfirm = () => {
-    if (inputValue && !tags.includes(inputValue)) {
-      onAdd(inputValue);
-    }
-    setInputVisible(false);
-    setInputValue('');
-  };
-  
-  // 加载Tag组件
-  const [Tag, setTag] = useState<any>(null);
-  
-  useEffect(() => {
-    // 动态导入，但只导入一次
-    import('antd/lib/tag').then(module => {
-      setTag(() => module.default);
-    });
-  }, []);
-  
-  if (!Tag) {
-    return <Spin size="small" />;
-  }
-  
-  return (
-    <div className={styles.tagContainer}>
-      {tags.map(tag => (
-        <Tag
-          key={tag}
-          closable
-          onClose={() => onRemove(tag)}
-          style={{ marginBottom: '8px' }}
-        >
-          {tag}
-        </Tag>
-      ))}
-      
-      {inputVisible ? (
-        <Input
-          type="text"
-          size="small"
-          className={styles.tagInput}
-          value={inputValue}
-          onChange={handleInputChange}
-          onBlur={handleInputConfirm}
-          onPressEnter={handleInputConfirm}
-          autoFocus
-        />
-      ) : (
-        <Tag 
-          onClick={() => setInputVisible(true)}
-          style={{ cursor: 'pointer' }}
-        >
-          <PlusOutlined /> 添加关键词
-        </Tag>
-      )}
-    </div>
-  );
-};
-
-// 简化图片上传组件
-const ImageUploader = ({ 
-  coverImage, 
-  setCoverImage 
-}: { 
-  coverImage: string, 
-  setCoverImage: (url: string) => void 
-}) => {
-  const [Upload, setUpload] = useState<any>(null);
-  const [Image, setImage] = useState<any>(null);
-  
-  useEffect(() => {
-    // 只导入一次组件
-    Promise.all([
-      import('antd/lib/upload').then(mod => setUpload(() => mod.default)),
-      import('next/image').then(mod => setImage(() => mod.default))
-    ]);
-  }, []);
-  
-  const beforeUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      setCoverImage(reader.result as string);
-    };
-    return false;
-  };
-  
-  if (!Upload || !Image) {
-    return (
-      <div className={styles.uploadButton}>
-        <Spin />
-        <div style={{ marginTop: 8 }}>加载中...</div>
-      </div>
-    );
-  }
-  
-  return (
-    <Upload
-      name="coverImage"
-      listType="picture-card"
-      showUploadList={false}
-      beforeUpload={beforeUpload}
-      accept="image/*"
-    >
-      {coverImage ? (
-        <div className={styles.previewImage}>
-          <Image
-            src={coverImage}
-            alt="封面图"
-            fill
-            style={{ objectFit: 'cover' }}
-          />
-        </div>
-      ) : (
-        <div className={styles.uploadButton}>
-          <PlusOutlined />
-          <div style={{ marginTop: 8 }}>上传封面</div>
-        </div>
-      )}
-    </Upload>
-  );
-};
-
-// 标题组件
-const SectionTitle = ({ children }: { children: React.ReactNode }) => {
-  const [Title, setTitle] = useState<any>(null);
-  
-  useEffect(() => {
-    import('antd/lib/typography/Title').then(
-      mod => setTitle(() => mod.default)
-    );
-  }, []);
-  
-  if (!Title) {
-    return <div style={{ height: '24px', marginBottom: '16px' }}>{children}</div>;
-  }
-  
-  return <Title level={5}>{children}</Title>;
-};
-
-// 内容组件 - 使用React.memo减少重渲染
-const ArticleEditContent = React.memo(() => {
+export default function EditArticlePage() {
   const router = useRouter();
   const params = useParams();
-  const id = params?.id as string;
-  const isNew = id === 'new';
-  const [form] = Form.useForm();
+  const { id } = params;
+  
   const [messageApi, contextHolder] = message.useMessage();
+  const [article, setArticle] = useState<ArticleData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  // 核心状态
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [keywords, setKeywords] = useState<string[]>([]);
-  const [date, setDate] = useState('');
-  const [status, setStatus] = useState<ArticleStatus>('待审核');
-  const [coverImage, setCoverImage] = useState('');
-  const [html, setHtml] = useState('');
-  const [dataLoaded, setDataLoaded] = useState(false); // 记录数据是否已加载
+  // 用于管理定时器的Refs
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Row和Col组件状态
-  const [Row, setRow] = useState<any>(null);
-  const [Col, setCol] = useState<any>(null);
-  const [Title, setTitle] = useState<any>(null);
-  
-  // 加载布局组件
+  // 初始化时获取文章数据
   useEffect(() => {
-    Promise.all([
-      import('antd/lib/row').then(mod => setRow(() => mod.default)),
-      import('antd/lib/col').then(mod => setCol(() => mod.default)),
-      import('antd/lib/typography/Title').then(mod => setTitle(() => mod.default))
-    ]);
-  }, []);
-  
-  // 阻止不必要的API请求
-  useEffect(() => {
-    // 使用性能标记记录页面加载
-    if (typeof window !== 'undefined' && window.performance) {
-      performance.mark('edit-page-loaded');
-    }
-  }, []);
-  
-  // 页面标题计算
-  const pageTitle = useMemo(() => isNew ? '创建文章' : '编辑文章', [isNew]);
-  
-  // 加载文章数据
-  useEffect(() => {
-    const fetchArticle = async () => {
-      // 如果数据已加载且不是新建文章，则跳过重复请求
-      if (dataLoaded && !isNew) {
-        console.log('文章数据已加载，跳过重复获取');
-        return;
-      }
-
+    async function fetchArticle() {
       try {
-        setIsLoading(true);
-        console.log(`开始获取文章数据，ID: ${id}, 是否新建: ${isNew}`);
+        setLoading(true);
         
-        if (isNew) {
-          // 确保新建文章时清空所有状态
-          setHtml('');
-          setDate('');
-          setKeywords([]);
-          setCoverImage('');
-          setStatus('待审核');
-          
-          // 重置表单
-          form.resetFields();
-          
-          setIsLoading(false);
-          setDataLoaded(true); // 标记数据已加载
+        // 如果是新建文章
+        if (id === 'new') {
+          setArticle({
+            id: 'new',
+            title: '',
+            summary: '',
+            content: '',
+            coverImage: '',
+            tags: [],
+            status: 'draft',
+            category: '',
+            author: '',
+          });
           return;
         }
-
-        // 使用优化的请求 - 添加防止缓存的时间戳
-        // 同时使用AbortController以便必要时终止请求
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
         
-        // 添加自定义头，表示这是真实页面请求而非预加载
-        const article = await fetchWithCache<Article>(`/api/articles/${id}?_t=${Date.now()}`, {
-          useCache: { ttl: 300000 }, // 缓存5分钟
-          retry: 1, // 减少重试次数
-          signal: controller.signal,
-          headers: {
-            'X-Page-Request': '1' // 表明这是用户主动发起的请求，而非预加载
-          }
-        });
+        // 否则获取现有文章
+        const response = await fetch(`/api/articles/${id}`);
         
-        clearTimeout(timeoutId);
-        
-        form.setFieldsValue({
-          title: article.title,
-          summary: article.summary,
-          category: article.category,
-        });
-        
-        setHtml(article.content || '');
-        setDate(article.date);
-        setKeywords(article.keywords || []);
-        setCoverImage(article.coverImage || '');
-        setStatus(article.status);
-        
-        setDataLoaded(true); // 标记数据已加载成功
-        
-      } catch (error) {
-        // 只记录非中止错误
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
-          console.error('获取文章数据失败:', error);
-          messageApi.error('获取文章数据失败');
+        if (!response.ok) {
+          throw new Error('获取文章失败');
         }
+        
+        const data = await response.json();
+        
+        // 转换数据格式，使其与表单匹配
+        setArticle({
+          id: data.id,
+          title: data.title || '',
+          summary: data.summary || '',
+          content: data.content || '',
+          coverImage: data.cover_image || '',
+          tags: data.keywords || [],
+          status: mapStatusFromApi(data.status),
+          category: data.category || '',
+          author: data.author || '',
+          templateId: data.template_id || undefined,
+          hotTopicId: data.hot_topic_id || undefined,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+          publishedAt: data.published_at
+        });
+      } catch (err) {
+        console.error('获取文章错误:', err);
+        setError('无法加载文章数据，请重试');
+        notification.error({
+          message: '加载失败',
+          description: '无法获取文章数据，请稍后重试'
+        });
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
-    };
+    }
     
     fetchArticle();
-  }, [id, isNew, form, messageApi, dataLoaded]);
+  }, [id]);
   
-  // 添加手动刷新方法
-  const handleRefreshArticle = () => {
-    setDataLoaded(false); // 重置数据加载状态
-    // 下一个渲染周期会触发useEffect重新加载数据
-  };
+  // 将API状态映射到前端状态
+  const mapStatusFromApi = (apiStatus: string): 'draft' | 'published' => {
+    const statusMap: Record<string, 'draft' | 'published'> = {
+      'draft': 'draft',
+      'pending': 'draft',
+      'published': 'published',
+      'rejected': 'draft',
+      'failed': 'draft',
+      'unpublished': 'draft'
+    };
+    
+    return statusMap[apiStatus] || 'draft';
+  }
   
-  // 保存文章 - 使用防抖
-  const handleSave = async () => {
+  // 将前端状态映射到API状态
+  const mapStatusToApi = (frontendStatus: 'draft' | 'published', isPendingReview: boolean = false): string => {
+    if (isPendingReview) return 'pending';
+    return frontendStatus === 'published' ? 'published' : 'draft';
+  }
+  
+  // 保存文章
+  const handleSave = async (data: ArticleData) => {
+    // 清除可能存在的旧定时器
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    
+    if (redirectTimerRef.current) {
+      clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = null;
+    }
+
     try {
-      const values = await form.validateFields();
-      setIsSaving(true);
-      
-      const articleData = {
-        ...values,
-        id: isNew ? undefined : id,
-        content: html,
-        date: date || new Date().toISOString().split('T')[0],
-        coverImage,
-        keywords,
-        status
-      };
-      
-      const url = isNew ? '/api/articles' : `/api/articles/${id}`;
+      const isNew = data.id === 'new';
+      const url = isNew ? '/api/articles' : `/api/articles/${data.id}`;
       const method = isNew ? 'POST' : 'PUT';
       
-      // 使用防抖优化 - 避免重复请求
-      const controller = new AbortController();
+      // 使用UUID工具验证热点话题ID
+      let validatedHotTopicId = data.hotTopicId;
+      if (validatedHotTopicId) {
+        // 检查是否是有效的UUID
+        if (!isValidUUID(validatedHotTopicId)) {
+          // 如果不是有效的UUID，但是数字格式，尝试查找对应的热点话题ID
+          if (/^\d+$/.test(validatedHotTopicId)) {
+            console.warn('热点话题ID不是有效的UUID格式，而是一个数字:', validatedHotTopicId);
+            // 这里可以选择抛出错误，或者将其设为null
+            throw new Error(`热点话题ID必须是有效的UUID格式，而不是简单的数字"${validatedHotTopicId}"`);
+          }
+          console.warn('热点话题ID不是有效的UUID格式，将设为null', validatedHotTopicId);
+          validatedHotTopicId = null;
+        }
+      }
       
-      await fetchWithCache<Article>(url, {
+      // 准备API数据
+      const apiData = {
+        title: data.title,
+        summary: data.summary,
+        content: data.content,
+        cover_image: data.coverImage,
+        keywords: data.tags,
+        status: mapStatusToApi(data.status),
+        category: data.category,
+        author: data.author,
+        template_id: data.templateId,
+        hot_topic_id: validatedHotTopicId
+      };
+      
+      const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'X-Page-Request': '1' // 添加标识，表明这是真实请求
         },
-        body: JSON.stringify(articleData),
-        useCache: false,
-        signal: controller.signal
+        body: JSON.stringify(apiData),
       });
       
-      messageApi.success('文章保存成功');
+      // 获取响应内容
+      const responseData = await response.json();
       
-      setTimeout(() => {
-        router.push('/articles');
-      }, 1500);
-      
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) {
-      console.error('保存文章失败:', error);
-      messageApi.error('保存文章失败，请重试');
+      if (!response.ok) {
+        // 提取详细错误信息
+        const errorDetail = responseData.error || responseData.message || '未知错误';
+        const errorCode = responseData.code || '';
+        const errorStack = responseData.detail ? `\n调用栈: ${responseData.detail}` : '';
+        
+        console.error('API错误详情:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorDetail,
+          errorCode,
+          errorStack,
+          responseData
+        });
+        
+        throw new Error(`保存文章失败: ${errorDetail}${errorCode ? ` (错误码: ${errorCode})` : ''}${
+          process.env.NODE_ENV === 'development' ? errorStack : ''
+        }`);
       }
-    } finally {
-      setIsSaving(false);
+      
+      // 保存成功后直接显示消息和跳转，不使用多层定时器
+      messageApi.success({
+        content: isNew ? '文章已成功创建！' : '文章已成功保存！',
+        duration: 2,
+        style: { zIndex: 1100 } // 确保toast显示在loading之上
+      });
+      
+      // 使用单个定时器进行跳转
+      redirectTimerRef.current = setTimeout(() => {
+        router.push(isNew ? `/articles/edit/${responseData.id}` : '/articles');
+      }, 300);
+      
+      return responseData; // 返回响应数据，以便其他函数使用
+    } catch (err) {
+      console.error('保存文章错误:', err);
+      
+      // 显示详细错误信息，强制设置duration为较长时间确保用户能看到
+      notification.error({
+        message: '保存失败',
+        description: err instanceof Error ? err.message : '保存文章时发生未知错误，请重试',
+        duration: 5,  // 从10秒改为5秒
+        style: { whiteSpace: 'pre-line', wordBreak: 'break-word' }  // 支持换行和文本换行
+      });
+      
+      throw err; // 重新抛出错误，以便调用者可以处理
     }
   };
   
-  // 标签操作
-  const handleAddTag = (tag: string) => {
-    setKeywords([...keywords, tag]);
+  // 发布文章
+  const handlePublish = async (data: ArticleData) => {
+    try {
+      // 保存文章时设置已发布状态
+      const articleWithPublishedStatus = {
+        ...data,
+        status: 'published' as const
+      };
+      
+      await handleSave(articleWithPublishedStatus);
+      
+      // 删除重复的成功通知，因为handleSave已经显示了通知
+    } catch (err) {
+      console.error('发布文章错误:', err);
+      
+      // 由handleSave处理错误提示
+      throw err;
+    }
   };
   
-  const handleRemoveTag = (tag: string) => {
-    setKeywords(keywords.filter(t => t !== tag));
+  // 添加一个提交审核的函数
+  const handleSubmitForReview = async (data: ArticleData) => {
+    // 清除可能存在的旧定时器
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    
+    if (redirectTimerRef.current) {
+      clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = null;
+    }
+
+    try {
+      const isNew = data.id === 'new';
+      const url = isNew ? '/api/articles' : `/api/articles/${data.id}`;
+      const method = isNew ? 'POST' : 'PUT';
+      
+      // 使用UUID工具验证热点话题ID
+      let validatedHotTopicId = data.hotTopicId;
+      if (validatedHotTopicId) {
+        // 检查是否是有效的UUID
+        if (!isValidUUID(validatedHotTopicId)) {
+          // 如果不是有效的UUID，但是数字格式，尝试查找对应的热点话题ID
+          if (/^\d+$/.test(validatedHotTopicId)) {
+            console.warn('热点话题ID不是有效的UUID格式，而是一个数字:', validatedHotTopicId);
+            // 这里可以选择抛出错误，或者将其设为null
+            throw new Error(`热点话题ID必须是有效的UUID格式，而不是简单的数字"${validatedHotTopicId}"`);
+          }
+          console.warn('热点话题ID不是有效的UUID格式，将设为null', validatedHotTopicId);
+          validatedHotTopicId = null;
+        }
+      }
+      
+      // 准备API数据
+      const apiData = {
+        title: data.title,
+        summary: data.summary,
+        content: data.content,
+        cover_image: data.coverImage,
+        keywords: data.tags,
+        status: 'pending', // 直接使用字符串，不通过mapStatusToApi
+        category: data.category,
+        author: data.author,
+        template_id: data.templateId,
+        hot_topic_id: validatedHotTopicId
+      };
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(apiData),
+      });
+      
+      // 获取响应内容
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        // 提取详细错误信息
+        const errorDetail = responseData.error || responseData.message || '未知错误';
+        const errorCode = responseData.code || '';
+        const errorStack = responseData.detail ? `\n调用栈: ${responseData.detail}` : '';
+        
+        console.error('API错误详情:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorDetail,
+          errorCode,
+          errorStack,
+          responseData
+        });
+        
+        throw new Error(`提交审核失败: ${errorDetail}${errorCode ? ` (错误码: ${errorCode})` : ''}${
+          process.env.NODE_ENV === 'development' ? errorStack : ''
+        }`);
+      }
+      
+      // 提交成功后直接显示消息
+      messageApi.success({
+        content: '文章已成功提交审核！',
+        duration: 2,
+        style: { zIndex: 1100 } // 确保toast显示在loading之上
+      });
+      
+      // 使用单个定时器进行跳转
+      redirectTimerRef.current = setTimeout(() => {
+        router.push('/articles');
+      }, 300);
+    } catch (err) {
+      console.error('提交审核错误:', err);
+      
+      // 显示详细错误信息
+      notification.error({
+        message: '提交失败',
+        description: err instanceof Error ? err.message : '提交审核时发生未知错误，请重试',
+        duration: 5, // 从10秒改为5秒
+        style: { whiteSpace: 'pre-line', wordBreak: 'break-word' }
+      });
+      
+      throw err; // 重新抛出错误，以便调用者可以处理
+    }
   };
   
-  return (
-    <>
-      {/* 自定义头部元素优化资源请求 */}
-      <NextHead>
-        <link rel="preload" href="/api/articles" as="fetch" crossOrigin="anonymous" />
-        <meta name="robots" content="noindex" /> {/* 阻止爬虫索引，减少资源请求 */}
-      </NextHead>
+  // 返回文章列表
+  const handleCancel = () => {
+    router.push('/articles');
+  };
+  
+  // 清理定时器
+  useEffect(() => {
+    // 组件卸载时清理所有定时器
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
       
-      <Content className={styles.container}>
-      {contextHolder}
-      
-        {/* 面包屑 */}
-      <Breadcrumb
-        items={[
-            { title: <a onClick={() => router.push('/articles')}>文章列表</a> },
-            { title: pageTitle }
-          ]}
-          className={styles.breadcrumb}
-        />
-        
-        {/* 标题区 */}
-        <div className={styles.pageHeader}>
-          <div className={styles.title}>
-            {Title ? (
-              <Title level={2}>{pageTitle}</Title>
-            ) : (
-              <h2>{pageTitle}</h2>
-            )}
-          </div>
-          
-          <Space>
-            <Button 
-              icon={<ArrowLeftOutlined />} 
-              onClick={() => router.push('/articles')}
-              disabled={isSaving}
-            >
-              返回
-            </Button>
-            <Button
-              onClick={handleRefreshArticle}
-              disabled={isSaving || isLoading}
-              icon={
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M1 4v6h6" />
-                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                </svg>
-              }
-            >
-              刷新
-            </Button>
-            <Button 
-              type="primary" 
-              icon={isSaving ? <Spin className={styles.savingSpinner} size="small" /> : <SaveOutlined />} 
-              onClick={handleSave}
-              loading={isSaving}
-              disabled={isSaving}
-            >
-              保存文章
-            </Button>
-          </Space>
-        </div>
-        
-        <Divider />
-        
-        {/* 主内容 */}
-        <Card loading={isLoading}>
-          <Form
-            form={form}
-            layout="vertical"
-            disabled={isLoading || isSaving}
-          >
-            {Row && Col ? (
-            <Row gutter={24}>
-                <Col xs={24} md={16}>
-                  {/* 基本信息区域 */}
-                  <div className={styles.section}>
-                <Form.Item 
-                  name="title" 
-                      label="文章标题"
-                  rules={[{ required: true, message: '请输入文章标题' }]}
-                      className={styles.formItem}
-                >
-                  <Input placeholder="输入文章标题..." />
-                </Form.Item>
-                
-                    <Form.Item
-                      name="summary"
-                      label="文章摘要"
-                      rules={[{ required: true, message: '请输入文章摘要' }]}
-                      className={styles.formItem}
-                    >
-                      <TextArea placeholder="输入文章摘要..." rows={4} />
-                </Form.Item>
-                
-                <Form.Item
-                  name="category"
-                  label="文章分类"
-                  rules={[{ required: true, message: '请选择文章分类' }]}
-                      className={styles.formItem}
-                >
-                  <Select placeholder="选择文章分类">
-                    {ARTICLE_CATEGORIES.map(category => (
-                      <Option key={category} value={category}>{category}</Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-                  </div>
-                  
-                  {/* 文章内容 */}
-                  <div className={styles.section}>
-                    <div style={{ marginBottom: '16px' }}>
-                      <SectionTitle>文章内容</SectionTitle>
-                    </div>
-                    
-                    <Suspense fallback={<LoadingComponent />}>
-                      <RichTextEditor
-                        initialValue={html}
-                        onChange={setHtml}
-                      />
-                    </Suspense>
-                  </div>
-                </Col>
-                
-                <Col xs={24} md={8}>
-                  {/* 封面图 */}
-                  <div className={styles.section}>
-                    <div style={{ marginBottom: '16px' }}>
-                      <SectionTitle>封面图</SectionTitle>
-                    </div>
-                    
-                    <ImageUploader 
-                      coverImage={coverImage}
-                      setCoverImage={setCoverImage}
-                    />
-                  </div>
-                  
-                  {/* 关键词标签 */}
-                  <div className={styles.section}>
-                    <div style={{ marginBottom: '16px' }}>
-                      <SectionTitle>关键词</SectionTitle>
-                    </div>
-                    
-                    <TagDisplay 
-                      tags={keywords}
-                      onAdd={handleAddTag}
-                      onRemove={handleRemoveTag}
-                    />
-                  </div>
-                </Col>
-              </Row>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <Spin size="large" />
-                <div style={{ marginTop: '16px' }}>加载布局组件...</div>
-              </div>
-            )}
-          </Form>
-        </Card>
-      </Content>
-    </>
-  );
-});
-
-ArticleEditContent.displayName = 'ArticleEditContent';
-
-// 主页面组件
-export default function ArticleEditPage() {
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+        redirectTimerRef.current = null;
+      }
+    };
+  }, []);
+  
   return (
     <DashboardLayout>
-      <ArticleEditContent />
+      {contextHolder}
+      {loading ? (
+        <LoadingScreen tip="加载文章中..." />
+      ) : error || !article ? (
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <h2>出错了</h2>
+          <p>{error || '无法加载文章'}</p>
+          <button 
+            onClick={() => router.push('/articles')}
+            style={{ padding: '8px 16px', cursor: 'pointer' }}
+          >
+            返回文章列表
+          </button>
+        </div>
+      ) : (
+        <ArticleForm
+          initialData={article}
+          onSave={handleSave}
+          onPublish={handlePublish}
+          onCancel={handleCancel}
+          onSubmitForReview={handleSubmitForReview}
+        />
+      )}
     </DashboardLayout>
   );
 } 

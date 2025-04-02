@@ -157,6 +157,7 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
             style={{ width: '100%' }}
             tokenSeparators={[',']}
             optionFilterProp="children"
+            listHeight={200}
             onInputKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
               if (e.key === 'Enter') {
                 const inputElement = e.target as HTMLInputElement;
@@ -171,8 +172,10 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
           >
             {hotTopics.map(topic => (
               <Option key={topic.keyword} value={topic.keyword}>
-                {topic.keyword}
-                <Tag color="orange" style={{ marginLeft: 8 }}>热度: {topic.popularity}</Tag>
+                <div style={{ padding: '4px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text strong>{topic.keyword}</Text>
+                  <Tag color="orange">热度: {topic.popularity}</Tag>
+                </div>
               </Option>
             ))}
           </Select>
@@ -192,14 +195,22 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
             value={selectedTemplate}
             onChange={handleSelectTemplate}
             style={{ width: '100%' }}
+            optionLabelProp="label"
+            listHeight={200}
           >
             {templates.map(template => (
-              <Option key={template.id} value={template.id}>
-                <div>
+              <Option 
+                key={template.id} 
+                value={template.id}
+                label={template.title}
+              >
+                <div style={{ padding: '4px 0' }}>
                   <Text strong>{template.title}</Text>
                   <Tag color="blue" style={{ marginLeft: 8 }}>{template.category}</Tag>
                 </div>
-                <Text type="secondary" style={{ fontSize: '12px' }}>{template.description}</Text>
+                <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                  {template.description}
+                </Text>
               </Option>
             ))}
           </Select>

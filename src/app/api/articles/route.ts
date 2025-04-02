@@ -66,7 +66,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logError('获取文章列表失败:', { error });
     return NextResponse.json(
-      { message: '获取文章列表失败', error: (error as Error).message },
+      { 
+        message: '获取文章列表失败', 
+        error: error instanceof Error ? error.message : '未知错误',
+        code: error instanceof Error && 'code' in error ? (error as any).code : undefined,
+        detail: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
@@ -92,9 +97,44 @@ export async function POST(request: NextRequest) {
     // 简单验证（标题和内容必须存在）
     if (!body.title || !body.content) {
       return NextResponse.json(
-        { message: '文章数据无效，标题和内容为必填项' },
+        { 
+          message: '文章数据无效，标题和内容为必填项',
+          error: '文章数据无效，标题和内容为必填项'
+        },
         { status: 400 }
       );
+    }
+    
+    // 验证hot_topic_id是否为有效UUID
+    if (body.hot_topic_id && typeof body.hot_topic_id === 'string') {
+      // 如果是纯数字，给出明确的错误
+      if (/^\d+$/.test(body.hot_topic_id)) {
+        return NextResponse.json(
+          { 
+            message: '热点话题ID格式无效', 
+            error: `热点话题ID必须是有效的UUID格式，而不是简单的数字"${body.hot_topic_id}"`,
+            code: 'INVALID_UUID_FORMAT',
+            detail: `热点话题ID值为 "${body.hot_topic_id}" 不是有效的UUID`
+          },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // 验证template_id是否为有效UUID
+    if (body.template_id && typeof body.template_id === 'string') {
+      // 如果是纯数字，给出明确的错误
+      if (/^\d+$/.test(body.template_id)) {
+        return NextResponse.json(
+          { 
+            message: '模板ID格式无效', 
+            error: `模板ID必须是有效的UUID格式，而不是简单的数字"${body.template_id}"`,
+            code: 'INVALID_UUID_FORMAT',
+            detail: `模板ID值为 "${body.template_id}" 不是有效的UUID`
+          },
+          { status: 400 }
+        );
+      }
     }
     
     logInfo('创建新文章', { requestId, title: body.title });
@@ -105,8 +145,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(article);
   } catch (error) {
     logError('创建文章失败:', { error });
+    
+    // 增强错误处理，提供更详细的错误信息
+    let errorCode = error instanceof Error && 'code' in error ? (error as any).code : undefined;
+    let errorMessage = error instanceof Error ? error.message : '未知错误';
+    let errorDetail = error instanceof Error ? error.stack : undefined;
+    
+    // 针对特定错误类型提供更友好的错误信息
+    if (errorCode === '22P02' && errorMessage.includes('uuid')) {
+      errorMessage = '提供的UUID格式不正确，请检查热点话题ID、模板ID或其他UUID字段的格式';
+      errorDetail = `原始错误: ${errorMessage}\n${errorDetail || ''}`;
+    }
+    
     return NextResponse.json(
-      { message: '创建文章失败', error: (error as Error).message },
+      { 
+        message: '创建文章失败', 
+        error: errorMessage,
+        code: errorCode,
+        detail: errorDetail
+      },
       { status: 500 }
     );
   }

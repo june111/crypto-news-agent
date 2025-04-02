@@ -43,8 +43,8 @@ type Database = {
 
 // 根据环境变量判断是否使用模拟模式
 export const MOCK_MODE = process.env.MOCK_DB === 'true' || 
-  process.env.NODE_ENV === 'test' || 
-  (process.env.NODE_ENV === 'development' && !process.env.SUPABASE_URL);
+  (process.env.NODE_ENV === 'test' && !process.env.SUPABASE_URL) || 
+  (process.env.NODE_ENV === 'development' && !process.env.SUPABASE_URL && process.env.USE_MOCK_DATA === 'true');
 
 // 模拟客户端单例
 let mockClient: any = null;
@@ -58,6 +58,7 @@ export function getSupabaseClient(requestId?: string): SupabaseClient | any {
   // 检查是否使用模拟模式
   if (MOCK_MODE) {
     if (mockClient) {
+      logDebug('使用缓存的模拟客户端');
       return mockClient;
     }
     
@@ -70,6 +71,7 @@ export function getSupabaseClient(requestId?: string): SupabaseClient | any {
   if (requestId) {
     const requestClient = getSupabaseClientForRequest(requestId);
     if (requestClient) {
+      logDebug(`使用为请求ID ${requestId.substring(0, 8)}... 创建的Supabase客户端`);
       return requestClient;
     }
   }
@@ -85,6 +87,7 @@ export function getSupabaseClient(requestId?: string): SupabaseClient | any {
     return mockClient;
   }
   
+  logDebug('使用连接池中的Supabase客户端');
   return client;
 }
 
@@ -387,11 +390,110 @@ export async function initDatabase(requestId?: string): Promise<boolean> {
   }
 }
 
+/**
+ * 存储操作
+ * 处理文件上传、检索等
+ */
+export const storage = {
+  /**
+   * 上传文件到Supabase存储
+   */
+  async uploadFile(bucketName: string, fileName: string, fileData: File | Blob | ArrayBuffer, options?: {
+    cacheControl?: string;
+    contentType?: string;
+    upsert?: boolean;
+  }) {
+    try {
+      const supabase = getSupabaseClient();
+      
+      const { data, error } = await supabase
+        .storage
+        .from(bucketName)
+        .upload(fileName, fileData, options);
+      
+      if (error) {
+        console.error('文件上传失败:', error);
+        throw error;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('处理文件上传时出错:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * 获取文件的公共URL
+   */
+  getPublicUrl(bucketName: string, fileName: string) {
+    const supabase = getSupabaseClient();
+    
+    const { data } = supabase
+      .storage
+      .from(bucketName)
+      .getPublicUrl(fileName);
+    
+    return data.publicUrl;
+  },
+  
+  /**
+   * 列出桶中的所有文件
+   */
+  async listFiles(bucketName: string, path?: string) {
+    try {
+      const supabase = getSupabaseClient();
+      
+      const { data, error } = await supabase
+        .storage
+        .from(bucketName)
+        .list(path);
+      
+      if (error) {
+        console.error('列出文件失败:', error);
+        throw error;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('处理列出文件时出错:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * 删除文件
+   */
+  async deleteFile(bucketName: string, filePath: string) {
+    try {
+      const supabase = getSupabaseClient();
+      
+      const { error } = await supabase
+        .storage
+        .from(bucketName)
+        .remove([filePath]);
+      
+      if (error) {
+        console.error('删除文件失败:', error);
+        throw error;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('处理删除文件时出错:', error);
+      throw error;
+    }
+  }
+};
+
 // 创建一个模块对象导出所有功能
 const supabaseModule = {
   getSupabaseClient,
   checkSupabaseConnection,
   initDatabase
 };
+
+// 导出存储功能
+export const storageService = storage;
 
 export default supabaseModule; 

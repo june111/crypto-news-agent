@@ -43,11 +43,17 @@ export async function GET(request: NextRequest) {
     // 获取热点话题
     const topics = await db.hotTopics.getAllHotTopics(filter);
     
+    logInfo('热点话题原始数据', { count: topics.length, sample: topics.slice(0, 2) });
+    
+    if (topics.length === 0) {
+      logInfo('从Supabase获取的热点话题为空', { requestId });
+    }
+    
     // 将旧版数据结构转换为新版数据结构
     const formattedTopics = topics.map(topic => {
       // 处理旧版API可能的字段名不一致问题
       const oldTopic = topic as any; // 使用any类型断言处理旧版数据结构
-      return {
+      const formattedTopic = {
         id: topic.id,
         keyword: topic.keyword || oldTopic.title || '', // 支持旧版title字段
         volume: typeof topic.volume !== 'undefined' ? topic.volume : (oldTopic.score || 0), // 支持旧版score字段
@@ -57,13 +63,23 @@ export async function GET(request: NextRequest) {
         updated_at: topic.updated_at || new Date().toISOString(),
         related_articles: topic.related_articles || []
       };
+      return formattedTopic;
     });
     
-    logInfo('热点话题获取成功', { requestId, count: formattedTopics.length });
+    logInfo('热点话题获取成功', { 
+      requestId, 
+      count: formattedTopics.length,
+      sample: formattedTopics.slice(0, 2)
+    });
     
     // 设置响应头，指定字符编码为UTF-8
     return new NextResponse(
-      JSON.stringify({ topics: formattedTopics }, null, 2), 
+      JSON.stringify({ 
+        topics: formattedTopics,
+        message: "成功获取热点话题",
+        count: formattedTopics.length,
+        success: true
+      }, null, 2), 
       {
         status: 200,
         headers: {
@@ -74,7 +90,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logError('获取热点话题列表失败:', { error });
     return NextResponse.json(
-      { error: '获取热点话题列表失败' },
+      { 
+        error: '获取热点话题列表失败',
+        message: error instanceof Error ? error.message : '未知错误',
+        topics: [],
+        success: false
+      },
       { status: 500 }
     );
   }

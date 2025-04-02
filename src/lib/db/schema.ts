@@ -17,6 +17,23 @@ export interface Article {
   published_at?: string;
   view_count: number;
   usage_count: number;
+  hot_topic_id?: string | null;  // 关联的热点话题ID
+  template_id?: string | null;   // 使用的文章模板ID
+  author?: string;               // 文章作者
+}
+
+// 图片表
+export interface Image {
+  id: string;
+  file_name: string;
+  original_name: string;
+  mime_type: string;
+  size: number;
+  url: string;
+  storage_path: string;
+  article_id?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // AI任务表
@@ -36,12 +53,12 @@ export interface AITask {
 export interface Template {
   id: string;
   name: string;
-  description: string;
-  category: string;
+  description?: string;
   content: string;
+  category: string;
+  usage_count: number;
   created_at: string;
   updated_at: string;
-  usage_count: number;
 }
 
 // 热点话题表
@@ -58,6 +75,7 @@ export interface HotTopic {
 // 数据库表名称常量
 export const TABLES = {
   ARTICLES: 'articles',
+  IMAGES: 'images',
   AI_TASKS: 'ai_tasks',
   TEMPLATES: 'templates',
   HOT_TOPICS: 'hot_topics',

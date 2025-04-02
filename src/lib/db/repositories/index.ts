@@ -1,20 +1,21 @@
 /**
- * 数据库仓库入口
- * 聚合所有仓库导出
+ * 数据仓库导出
  */
-import articleRepository from './articleRepository';
-import templatesRepository from './templatesRepository';
-import aiTaskRepository from './aiTaskRepository';
-import hotTopicsRepository from './hotTopicsRepository';
-import embeddingsRepository from './embeddingsRepository';
+import * as articles from './articleRepository';
+import * as templates from './templatesRepository';
+import * as aiTasks from './aiTaskRepository';
+import * as hotTopics from './hotTopicsRepository';
+import * as images from './imageRepository';
+import * as embeddings from './embeddingsRepository';
 
-// 通过统一的入口导出所有仓库
+// 导出所有仓库
 const repositories = {
-  articles: articleRepository,
-  templates: templatesRepository,
-  aiTasks: aiTaskRepository,
-  hotTopics: hotTopicsRepository,
-  embeddings: embeddingsRepository
+  articles,
+  templates,
+  aiTasks,
+  hotTopics,
+  images,
+  embeddings
 };
 
 export default repositories; 

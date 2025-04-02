@@ -178,25 +178,8 @@ export async function getAllHotTopics(filter?: HotTopicFilter): Promise<HotTopic
     
     if (!result || !result.data) {
       console.log('未获取到数据或数据格式不正确:', result);
-      // 模拟数据 - 当没有数据时返回一些示例数据
-      return [
-        {
-          id: 'mock-1',
-          keyword: '模拟热点话题1',
-          volume: 9000,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          related_articles: []
-        },
-        {
-          id: 'mock-2',
-          keyword: '模拟热点话题2',
-          volume: 4000,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          related_articles: []
-        }
-      ];
+      // 返回空数组，而不是模拟数据
+      return [];
     }
     
     const { data, error } = result;

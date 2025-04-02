@@ -9,6 +9,11 @@ import db from '@/lib/db';
 // GET: 获取模板列表，支持分页、筛选和排序
 export async function GET(request: NextRequest) {
   try {
+    // 获取请求ID用于追踪和连接复用
+    const requestId = request.headers.get('x-request-id') || 
+                     request.headers.get('x-db-request-id') ||
+                     `api-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
     // 从URL参数中获取查询参数
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
@@ -20,10 +25,16 @@ export async function GET(request: NextRequest) {
     // 参数校验
     if (isNaN(page) || isNaN(pageSize) || page < 1 || pageSize < 1) {
       return NextResponse.json(
-        { error: '无效的分页参数' },
+        { 
+          error: '无效的分页参数',
+          templates: [],
+          success: false 
+        },
         { status: 400 }
       );
     }
+
+    console.log(`获取模板列表，参数: page=${page}, pageSize=${pageSize}, category=${category}, sortBy=${sortBy}, sortOrder=${sortOrder}`);
 
     // 获取模板列表
     const result = await db.templates.getAllTemplates({
@@ -34,11 +45,33 @@ export async function GET(request: NextRequest) {
       sortOrder
     });
 
-    return NextResponse.json(result);
+    console.log(`获取到 ${result.templates.length} 个模板，总计: ${result.total}`);
+    
+    if (result.templates.length > 0) {
+      console.log('模板示例:', result.templates.slice(0, 2));
+    } else {
+      console.log('未找到任何模板');
+    }
+
+    // 确保一致的响应格式
+    return NextResponse.json({
+      templates: result.templates,
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+      totalPages: result.totalPages,
+      success: true,
+      message: "成功获取模板"
+    });
   } catch (error) {
     console.error('获取模板列表失败:', error);
     return NextResponse.json(
-      { error: '获取模板列表失败' },
+      { 
+        error: '获取模板列表失败', 
+        message: error instanceof Error ? error.message : '未知错误',
+        templates: [],
+        success: false
+      },
       { status: 500 }
     );
   }

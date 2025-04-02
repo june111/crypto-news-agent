@@ -23,6 +23,15 @@ const nextConfig = {
   },
   // 性能优化配置
   webpack: (config, { dev, isServer }) => {
+    // wangEditor在服务器端的特殊处理
+    if (isServer) {
+      // 确保wangEditor不会在服务器端执行
+      config.externals = [...(config.externals || []), 
+        '@wangeditor/editor',
+        '@wangeditor/editor-for-react'
+      ];
+    }
+    
     // 开发模式下的优化
     if (dev) {
       // 注意: Next.js不允许在开发模式下修改devtool

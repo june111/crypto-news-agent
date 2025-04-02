@@ -1,5 +1,5 @@
 // 文章状态类型
-export type ArticleStatus = '待审核' | '已发布' | '不过审' | '发布失败' | '草稿';
+export type ArticleStatus = '待审核' | '已发布' | '不过审' | '发布失败' | '草稿' | '已下架';
 
 // 文章分类列表
 export const ARTICLE_CATEGORIES = [

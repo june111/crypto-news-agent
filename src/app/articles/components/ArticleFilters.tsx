@@ -7,10 +7,10 @@ import styles from '../articles.module.css';
 import { ArticleStatus } from '@/types/article';
 
 // 状态选项
-const STATUS_OPTIONS: ArticleStatus[] = ['待审核', '已发布', '不过审', '发布失败'];
+const STATUS_OPTIONS = ['草稿', '待审核', '已发布', '不过审', '发布失败', '已下架'];
 
-// 获取状态对应的颜色
-const getStatusColor = (status: ArticleStatus) => {
+// 获取状态颜色
+const getStatusColor = (status: string): string => {
   switch (status) {
     case '已发布':
       return 'success';
@@ -20,8 +20,12 @@ const getStatusColor = (status: ArticleStatus) => {
       return 'error';
     case '发布失败':
       return 'warning';
-    default:
+    case '草稿':
+      return 'cyan';
+    case '已下架':
       return 'default';
+    default:
+      return '';
   }
 };
 
@@ -180,7 +184,9 @@ const ArticleFilters: React.FC<ArticleFiltersProps> = ({
               >
                 {STATUS_OPTIONS.map((status) => (
                   <Option key={status} value={status}>
-                    <Tag color={getStatusColor(status)}>{status}</Tag>
+                    <Tag color={getStatusColor(status)} style={{ minWidth: '60px', textAlign: 'center' }}>
+                      {status}
+                    </Tag>
                   </Option>
                 ))}
               </Select>

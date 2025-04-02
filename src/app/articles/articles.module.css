@@ -46,10 +46,10 @@
 }
 
 .tableContainer {
-  background: white;
+  background: #fff;
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  margin-bottom: 40px;
+  overflow: hidden;
 }
 
 .actionButtons {
@@ -75,50 +75,46 @@
 }
 
 .keywordTag {
-  background: #f0f0f0;
-  color: #595959;
-  padding: 2px 8px;
-  border-radius: 10px;
+  background-color: #f0f5ff;
+  color: #1677ff;
+  padding: 2px 6px;
   font-size: 12px;
-  white-space: nowrap;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 4px;
 }
 
 .statusTag {
-  min-width: 62px;
+  min-width: 64px;
   text-align: center;
+  display: inline-block;
 }
 
 .tableActions {
   display: flex;
-  gap: 8px;
   flex-wrap: wrap;
+  gap: 8px;
 }
 
 .tableActionButton {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  margin-right: 8px;
 }
 
 .tableImage {
   position: relative;
-  width: 80px;
-  height: 50px;
+  width: 100%;
+  height: 60px;
   border-radius: 4px;
   overflow: hidden;
-  transition: all 0.3s;
-}
-
-.tableImage:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .titleOverflow {
-  max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 300px;
+  cursor: pointer;
 }
 
 .filterResultInfo {
@@ -180,20 +176,104 @@
   margin-bottom: 16px;
 }
 
-/* 编辑器相关样式 */
+/* 添加骨架屏闪烁动画 */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* 编辑器容器 */
 .editorContainer {
-  border: 1px solid #d9d9d9;
   border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.editorToolbar {
+  padding: 12px;
+  border: 1px solid #d9d9d9;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  background-color: #fafafa;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.richTextArea {
+  border: 1px solid #d9d9d9;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
+.richTextArea:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+}
+
+/* 图片上传组件样式 */
+.uploader {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.uploader :global(.ant-upload.ant-upload-select-picture-card) {
+  width: 104px;
+  height: 104px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.uploader :global(.ant-upload.ant-upload-select-picture-card:hover) {
+  border-color: #1890ff;
+  background-color: #f0f7ff;
+}
+
+.uploader :global(.ant-upload-list-picture-card .ant-upload-list-item) {
+  width: 104px;
+  height: 104px;
+  padding: 4px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
-.toolbar {
-  border-bottom: 1px solid #d9d9d9;
+.uploader :global(.ant-upload-list-picture-card-container) {
+  width: 104px;
+  height: 104px;
+  margin: 0 8px 8px 0;
 }
 
-.editor {
-  height: 500px;
-  overflow-y: hidden;
+.uploader :global(.ant-upload-list-picture-card .ant-upload-list-item-thumbnail) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.uploader :global(.ant-upload-list-picture-card .ant-upload-list-item-info::before) {
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 4px;
+}
+
+.previewImage {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .uploadButton {
@@ -201,44 +281,80 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 104px;
-  width: 100%;
+  height: 100%;
   background-color: #fafafa;
   border: 1px dashed #d9d9d9;
   border-radius: 4px;
   cursor: pointer;
+  transition: border-color 0.3s, background-color 0.3s;
+  padding: 16px;
 }
 
-.previewImage {
-  position: relative;
-  width: 100%;
-  height: 150px;
-  overflow: hidden;
-  border-radius: 4px;
+.uploadButton:hover {
+  border-color: #1890ff;
+  background-color: #f0f7ff;
 }
 
-.tagContainer {
+.uploadButtonIcon {
+  font-size: 32px;
+  color: #8c8c8c;
   margin-bottom: 8px;
+}
+
+.uploadButtonText {
+  color: #8c8c8c;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.uploadButtonHint {
+  color: #bfbfbf;
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* 标签容器样式 */
+.tagContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
 }
 
 .tagInput {
   width: 120px;
-  margin-right: 8px;
+  border-radius: 4px;
 }
 
-.spaceBetween {
-  display: flex;
-  justify-content: space-between;
+.tagAddButton {
+  background-color: #f9f9f9;
+  border: 1px dashed #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0 10px;
+  height: 28px;
+  line-height: 26px;
+  font-size: 13px;
+  color: #666;
+  display: inline-flex;
   align-items: center;
+  margin-bottom: 8px;
+  transition: all 0.3s;
 }
 
-.buttonGroup {
-  display: flex;
-  gap: 8px;
+.tagAddButton:hover {
+  background-color: #f0f7ff;
+  border-color: #1890ff;
+  color: #1890ff;
 }
 
-.savingSpinner {
-  margin-right: 8px;
+.tagAddButton svg {
+  margin-right: 4px;
 }
 
 /* 响应式样式 */
@@ -260,4 +376,120 @@
   .editor {
     height: 300px;
   }
+}
+
+/* 单栏布局样式 */
+.singleColumnLayout {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.formSection {
+  margin-bottom: 32px;
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sectionHeader {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.formItem {
+  margin-bottom: 24px;
+}
+
+.formItemHalf {
+  flex: 1;
+  margin-right: 16px;
+}
+
+.formItemHalf:last-child {
+  margin-right: 0;
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.labelText {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.85);
+  margin-bottom: 8px;
+}
+
+.titleInput {
+  font-size: 18px;
+  height: 50px;
+}
+
+.summaryInput {
+  font-size: 14px;
+  resize: vertical;
+}
+
+.articleCard {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+}
+
+.editorFooter {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: #f9f9f9;
+  border-radius: 0 0 4px 4px;
+  font-size: 12px;
+  color: #999;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 上传组件辅助样式 */
+.uploadContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 104px;
+  width: 104px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  background-color: #fafafa;
+  margin-bottom: 8px;
+}
+
+.uploadHint {
+  margin-bottom: 8px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+/* 封面图预览遮罩样式 */
+.imageMask {
+  font-size: 14px;
+  background-color: rgba(0, 0, 0, 0.65);
+  color: white;
+  border-radius: 2px;
+}
+
+/* 封面图卡片样式 */
+.coverImageCard {
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.coverImageCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 } 
