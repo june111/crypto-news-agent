@@ -53,16 +53,33 @@ export async function GET(request: NextRequest) {
     const formattedTopics = topics.map(topic => {
       // 处理旧版API可能的字段名不一致问题
       const oldTopic = topic as any; // 使用any类型断言处理旧版数据结构
+      
+      // 确保volume字段始终为数字类型
+      let volume = typeof topic.volume !== 'undefined' ? Number(topic.volume) : 0;
+      
+      // 尝试从可能的替代字段获取热度值
+      if (volume === 0) {
+        if (typeof oldTopic.score !== 'undefined') volume = Number(oldTopic.score);
+        else if (typeof oldTopic.popularity !== 'undefined') volume = Number(oldTopic.popularity);
+      }
+      
       const formattedTopic = {
         id: topic.id,
         keyword: topic.keyword || oldTopic.title || '', // 支持旧版title字段
-        volume: typeof topic.volume !== 'undefined' ? topic.volume : (oldTopic.score || 0), // 支持旧版score字段
+        volume: volume, // 确保为数字类型
         source: topic.source || '',
         date: topic.created_at ? new Date(topic.created_at).toISOString().split('T')[0] : '',
         created_at: topic.created_at || new Date().toISOString(),
         updated_at: topic.updated_at || new Date().toISOString(),
         related_articles: topic.related_articles || []
       };
+      
+      // 如果volume为NaN或undefined，设为0
+      if (isNaN(formattedTopic.volume)) {
+        console.warn(`话题 ${formattedTopic.keyword} 的热度值无效，设为0`);
+        formattedTopic.volume = 0;
+      }
+      
       return formattedTopic;
     });
     

@@ -142,6 +142,35 @@ export async function POST(request: NextRequest) {
     // 创建文章
     const article = await repositories.articles.createArticle(body);
     
+    // 保存封面图片与文章的关联关系
+    if (article && article.id && body.cover_image) {
+      try {
+        // 查询数据库中是否有与这个图片URL相关的记录
+        const images = await repositories.images.getImagesByUrl(body.cover_image);
+        
+        // 如果找到相关图片，更新它们的article_id
+        if (images && images.length > 0) {
+          for (const image of images) {
+            if (!image.article_id) {
+              logInfo('更新图片关联的文章ID', { 
+                requestId, 
+                imageId: image.id, 
+                articleId: article.id 
+              });
+              await repositories.images.updateImageArticleId(image.id, article.id);
+            }
+          }
+        }
+      } catch (imgError) {
+        // 捕获图片处理错误，但不影响文章创建的成功响应
+        logError('更新图片关联文章ID失败:', { 
+          error: imgError, 
+          articleId: article.id, 
+          coverImage: body.cover_image 
+        });
+      }
+    }
+    
     return NextResponse.json(article);
   } catch (error) {
     logError('创建文章失败:', { error });

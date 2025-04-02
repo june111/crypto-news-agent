@@ -4,9 +4,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import repositories, { initDatabaseOnce } from '@/lib/db';
+import { logInfo, logError } from '@/lib/db/utils/logger';
 
-// GET: 获取模板列表，支持分页、筛选和排序
+/**
+ * 获取文章模板列表
+ */
 export async function GET(request: NextRequest) {
   try {
     // 获取请求ID用于追踪和连接复用
@@ -14,60 +17,70 @@ export async function GET(request: NextRequest) {
                      request.headers.get('x-db-request-id') ||
                      `api-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
-    // 从URL参数中获取查询参数
+    // 确保数据库初始化
+    await initDatabaseOnce(requestId);
+    
+    // 获取查询参数
     const searchParams = request.nextUrl.searchParams;
-    const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '10');
     const category = searchParams.get('category') || '';
-    const sortBy = searchParams.get('sortBy') || 'created_at';
-    const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
-
-    // 参数校验
-    if (isNaN(page) || isNaN(pageSize) || page < 1 || pageSize < 1) {
-      return NextResponse.json(
-        { 
-          error: '无效的分页参数',
-          templates: [],
-          success: false 
-        },
-        { status: 400 }
-      );
-    }
-
-    console.log(`获取模板列表，参数: page=${page}, pageSize=${pageSize}, category=${category}, sortBy=${sortBy}, sortOrder=${sortOrder}`);
-
-    // 获取模板列表
-    const result = await db.templates.getAllTemplates({
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '100');
+    
+    logInfo('获取文章模板', { requestId, category, page, pageSize });
+    
+    // 获取模板列表，传递正确的参数对象
+    const result = await repositories.templates.getAllTemplates({
       page,
       pageSize,
       category,
-      sortBy,
-      sortOrder
+      sortBy: 'name',
+      sortOrder: 'asc'
     });
-
-    console.log(`获取到 ${result.templates.length} 个模板，总计: ${result.total}`);
     
-    if (result.templates.length > 0) {
-      console.log('模板示例:', result.templates.slice(0, 2));
-    } else {
-      console.log('未找到任何模板');
-    }
-
-    // 确保一致的响应格式
+    // 确保模板数据格式一致
+    const formattedTemplates = result.templates.map(template => {
+      // 使用类型断言确保类型安全
+      const typedTemplate = template as {
+        id?: string;
+        name?: string;
+        description?: string;
+        category?: string;
+        content?: string;
+        usage_count?: number;
+        created_at?: string;
+        updated_at?: string;
+      };
+      
+      // 确保所有必要字段都存在
+      return {
+        id: typedTemplate.id || '',
+        name: typedTemplate.name || '',
+        title: typedTemplate.name || '', // 兼容前端可能使用title的情况
+        description: typedTemplate.description || '',
+        category: typedTemplate.category || '未分类',
+        content: typedTemplate.content || '',
+        usage_count: typedTemplate.usage_count || 0,
+        created_at: typedTemplate.created_at || new Date().toISOString(),
+        updated_at: typedTemplate.updated_at || new Date().toISOString()
+      };
+    });
+    
+    // 返回模板列表
     return NextResponse.json({
-      templates: result.templates,
+      templates: formattedTemplates,
+      count: formattedTemplates.length,
       total: result.total,
       page: result.page,
       pageSize: result.pageSize,
       totalPages: result.totalPages,
-      success: true,
-      message: "成功获取模板"
+      message: "成功获取文章模板",
+      success: true
     });
   } catch (error) {
-    console.error('获取模板列表失败:', error);
+    logError('获取文章模板列表失败:', { error });
     return NextResponse.json(
       { 
-        error: '获取模板列表失败', 
+        error: '获取文章模板列表失败',
         message: error instanceof Error ? error.message : '未知错误',
         templates: [],
         success: false
@@ -93,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 创建新模板，符合接口类型限制
-    const template = await db.templates.createTemplate({
+    const template = await repositories.templates.createTemplate({
       name,
       content,
       description,

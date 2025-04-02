@@ -183,4 +183,24 @@ export async function deleteImage(imageId: string) {
     console.error('删除图片过程中出错:', error);
     throw error;
   }
+}
+
+/**
+ * 根据URL获取图片
+ */
+export async function getImagesByUrl(imageUrl: string) {
+  const supabase = getSupabaseClient();
+  
+  const { data, error } = await safeQuery(supabase
+    .from(IMAGES_TABLE)
+    .select('*')
+    .eq('url', imageUrl)
+    .order('created_at', { ascending: false }));
+  
+  if (error) {
+    console.error('根据URL获取图片失败:', error);
+    throw error;
+  }
+  
+  return data as Image[];
 } 

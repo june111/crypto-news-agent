@@ -13,6 +13,9 @@ let globalClientInstance: SupabaseClient | null = null;
 // 请求级别的连接缓存，防止在同一请求中创建多个连接
 const connectionCache: Map<string, SupabaseClient> = new Map();
 
+// 存储定时器ID的映射，用于清理
+const connectionTimers: Map<string, NodeJS.Timeout> = new Map();
+
 // 连接尝试计数
 let connectionAttempts = 0;
 const MAX_ATTEMPTS = 3;
@@ -55,14 +58,25 @@ export function getSupabaseClientForRequest(requestId?: string): SupabaseClient 
   if (client) {
     connectionCache.set(currentRequestId, client);
     
+    // 清除已有定时器(如果存在)
+    if (connectionTimers.has(currentRequestId)) {
+      clearTimeout(connectionTimers.get(currentRequestId));
+      connectionTimers.delete(currentRequestId);
+    }
+    
     // 设置超时自动清理
-    setTimeout(() => {
+    const timerId = setTimeout(() => {
       if (connectionCache.has(currentRequestId) && 
           connectionCache.get(currentRequestId) !== globalClientInstance) {
         connectionCache.delete(currentRequestId);
         logDebug(`连接超时清理`, { requestId: currentRequestId });
       }
+      // 清理定时器引用
+      connectionTimers.delete(currentRequestId);
     }, CONNECTION_TIMEOUT);
+    
+    // 存储定时器ID以便后续清理
+    connectionTimers.set(currentRequestId, timerId);
     
     // 定期清理整个缓存
     const now = Date.now();
@@ -81,6 +95,12 @@ export function getSupabaseClientForRequest(requestId?: string): SupabaseClient 
 function cleanupConnectionCache() {
   const cacheSize = connectionCache.size;
   if (cacheSize > 0) {
+    // 清理所有定时器
+    connectionTimers.forEach((timerId) => {
+      clearTimeout(timerId);
+    });
+    connectionTimers.clear();
+    
     // 保留全局单例连接
     connectionCache.clear();
     // 如果存在全局实例，确保它仍在缓存中
@@ -89,6 +109,13 @@ function cleanupConnectionCache() {
     }
     logDebug(`执行连接缓存清理，当前缓存大小从 ${cacheSize} 变为 ${connectionCache.size}`);
   }
+}
+
+// 在应用关闭前清理所有连接和定时器
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    cleanupConnectionCache();
+  });
 }
 
 /**

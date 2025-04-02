@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { cacheData, getCachedData, clearCache } from '@/util/cache';
 
 interface UseCachedFetchOptions<T> {
@@ -40,6 +40,7 @@ export function useCachedFetch<T>(
   const [loading, setLoading] = useState(!disabled);
   const [error, setError] = useState<Error | null>(null);
   const [isCached, setIsCached] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // 获取数据函数
   const fetchData = useCallback(async (skipCache = false): Promise<void> => {
@@ -64,9 +65,20 @@ export function useCachedFetch<T>(
         }
       }
 
+      // 取消之前未完成的请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // 创建新的AbortController
+      abortControllerRef.current = new AbortController();
+
       // 如果缓存中没有数据或已过期，则从远程获取
       setIsCached(false);
-      const response = await fetch(url, fetchOptions);
+      const response = await fetch(url, {
+        ...fetchOptions,
+        signal: abortControllerRef.current.signal
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP错误! 状态: ${response.status}`);
@@ -80,6 +92,11 @@ export function useCachedFetch<T>(
       setData(result);
       onSuccess?.(result);
     } catch (err) {
+      // 忽略因为组件卸载导致的中止错误
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+      
       const error = err instanceof Error ? err : new Error(String(err));
       setError(error);
       onError?.(error);
@@ -101,8 +118,15 @@ export function useCachedFetch<T>(
   // 首次渲染时获取数据
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, disabled]);
+    
+    // 在组件卸载时取消请求
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, [url, disabled, fetchData]);
 
   return {
     data,

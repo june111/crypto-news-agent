@@ -34,6 +34,37 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 相关实现位于`src/lib/db/repositories/embeddingsRepository.ts`。
 
+## Supabase 存储配置
+
+项目使用 Supabase 进行图片存储和数据库操作。请按照以下步骤配置：
+
+1. 注册并创建 Supabase 项目：https://app.supabase.io/
+2. 在 Supabase 控制台中，获取以下信息：
+   - Project URL (项目URL)
+   - API Keys (API密钥) - anon public 和 service_role key
+3. 在 Supabase 存储中创建名为 `article-images` 的存储桶：
+   - 打开 Supabase 控制台 -> Storage
+   - 点击 "New Bucket"
+   - 输入名称 `article-images`
+   - 开启 "Public bucket" (允许公开访问)
+4. 复制 `.env.example` 到 `.env.local` 并填入相应的值：
+   ```
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_KEY=your_supabase_service_key
+   ```
+5. 确保已创建 `images` 表（用于存储图片元数据）。如果没有，可以运行迁移脚本：
+   ```
+   npm run db:migrate
+   ```
+
+如果在本地开发环境中想使用本地存储而非 Supabase 存储，请在 `.env.local` 中设置：
+```
+USE_LOCAL_STORAGE=true
+```
+
+注意：在生产环境中应始终使用 Supabase 存储，而不是本地存储或 base64 数据 URL。
+
 ## Getting Started
 
 First, run the development server:

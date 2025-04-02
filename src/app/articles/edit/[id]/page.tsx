@@ -201,17 +201,15 @@ export default function EditArticlePage() {
         }`);
       }
       
-      // 保存成功后直接显示消息和跳转，不使用多层定时器
+      // 保存成功后直接显示消息
       messageApi.success({
         content: isNew ? '文章已成功创建！' : '文章已成功保存！',
-        duration: 2,
+        duration: 1,
         style: { zIndex: 1100 } // 确保toast显示在loading之上
       });
       
-      // 使用单个定时器进行跳转
-      redirectTimerRef.current = setTimeout(() => {
-        router.push(isNew ? `/articles/edit/${responseData.id}` : '/articles');
-      }, 300);
+      // 直接跳转到文章列表页，不使用定时器
+      router.push('/articles');
       
       return responseData; // 返回响应数据，以便其他函数使用
     } catch (err) {
@@ -297,6 +295,7 @@ export default function EditArticlePage() {
         hot_topic_id: validatedHotTopicId
       };
       
+      // 发送请求
       const response = await fetch(url, {
         method,
         headers: {
@@ -305,52 +304,33 @@ export default function EditArticlePage() {
         body: JSON.stringify(apiData),
       });
       
-      // 获取响应内容
-      const responseData = await response.json();
-      
       if (!response.ok) {
-        // 提取详细错误信息
-        const errorDetail = responseData.error || responseData.message || '未知错误';
-        const errorCode = responseData.code || '';
-        const errorStack = responseData.detail ? `\n调用栈: ${responseData.detail}` : '';
-        
-        console.error('API错误详情:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorDetail,
-          errorCode,
-          errorStack,
-          responseData
-        });
-        
-        throw new Error(`提交审核失败: ${errorDetail}${errorCode ? ` (错误码: ${errorCode})` : ''}${
-          process.env.NODE_ENV === 'development' ? errorStack : ''
-        }`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || '提交审核失败');
       }
       
-      // 提交成功后直接显示消息
+      const responseData = await response.json();
+      
+      // 显示成功消息
       messageApi.success({
-        content: '文章已成功提交审核！',
-        duration: 2,
-        style: { zIndex: 1100 } // 确保toast显示在loading之上
+        content: '文章已提交审核！',
+        duration: 1
       });
       
-      // 使用单个定时器进行跳转
-      redirectTimerRef.current = setTimeout(() => {
-        router.push('/articles');
-      }, 300);
+      // 直接跳转到文章列表页，不使用定时器
+      router.push('/articles');
+      
+      return responseData;
     } catch (err) {
       console.error('提交审核错误:', err);
       
-      // 显示详细错误信息
       notification.error({
-        message: '提交失败',
+        message: '提交审核失败',
         description: err instanceof Error ? err.message : '提交审核时发生未知错误，请重试',
-        duration: 5, // 从10秒改为5秒
-        style: { whiteSpace: 'pre-line', wordBreak: 'break-word' }
+        duration: 5
       });
       
-      throw err; // 重新抛出错误，以便调用者可以处理
+      throw err;
     }
   };
   

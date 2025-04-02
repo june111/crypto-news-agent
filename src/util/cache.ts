@@ -8,23 +8,56 @@ type CacheEntry<T> = {
   data: T;
   timestamp: number;
   expiresAt: number;
+  lastAccessed: number; // 添加最后访问时间用于LRU策略
 };
+
+// 全局缓存配置
+const MAX_CACHE_SIZE = 100; // 最大缓存条目数量
+const DEFAULT_TTL = 300; // 默认过期时间（秒）
 
 // 全局缓存实例
 const memoryCache = new Map<string, CacheEntry<any>>();
 
 // 将数据存储到缓存中
-export function cacheData<T>(key: string, data: T, ttlInSeconds = 300): void {
+export function cacheData<T>(key: string, data: T, ttlInSeconds = DEFAULT_TTL): void {
   const now = Date.now();
+  
+  // 检查缓存是否已满，如果已满则进行LRU淘汰
+  if (memoryCache.size >= MAX_CACHE_SIZE && !memoryCache.has(key)) {
+    evictLeastRecentlyUsed();
+  }
+  
   memoryCache.set(key, {
     data,
     timestamp: now,
     expiresAt: now + ttlInSeconds * 1000,
+    lastAccessed: now
   });
   
   // 记录缓存操作，便于开发调试
   if (process.env.NODE_ENV === 'development') {
     console.log(`[Cache] Stored: ${key}, Expires in ${ttlInSeconds}s`);
+  }
+}
+
+// LRU淘汰策略：移除最近最少使用的缓存项
+function evictLeastRecentlyUsed(): void {
+  let oldestKey: string | null = null;
+  let oldestAccessTime = Infinity;
+  
+  // 使用兼容性更好的方式迭代Map
+  memoryCache.forEach((entry, key) => {
+    if (entry.lastAccessed < oldestAccessTime) {
+      oldestAccessTime = entry.lastAccessed;
+      oldestKey = key;
+    }
+  });
+  
+  if (oldestKey) {
+    memoryCache.delete(oldestKey);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Cache] LRU Eviction: ${oldestKey}`);
+    }
   }
 }
 
@@ -46,6 +79,9 @@ export function getCachedData<T>(key: string): T | null {
     
     return null;
   }
+  
+  // 更新最后访问时间
+  entry.lastAccessed = Date.now();
   
   if (process.env.NODE_ENV === 'development') {
     const remainingTime = Math.floor((entry.expiresAt - Date.now()) / 1000);
@@ -95,6 +131,9 @@ export function hasCachedData(key: string): boolean {
     memoryCache.delete(key);
     return false;
   }
+  
+  // 更新最后访问时间
+  entry.lastAccessed = Date.now();
   
   return true;
 }

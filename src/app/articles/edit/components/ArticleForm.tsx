@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Input, Button, Space, Card, notification, Select, DatePicker, Typography, Spin, message } from 'antd';
+import { Input, Button, Space, Card, notification, Select, DatePicker, Typography, Spin, message, Tag } from 'antd';
+import { ReloadOutlined } from '@ant-design/icons';
 import FormField from './FormField';
 import RichTextEditor from './RichTextEditor';
 import ImageUploader from './ImageUploader';
@@ -21,6 +22,7 @@ interface Template {
   name: string;
   description: string;
   category: string;
+  usage_count: number;
 }
 
 // 添加热点话题类型定义
@@ -121,6 +123,9 @@ export default function ArticleForm({
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSubmittingForReview, setIsSubmittingForReview] = useState(false);
   
+  // 在state部分添加刷新状态
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   // 加载模板数据
   useEffect(() => {
     async function fetchTemplates() {
@@ -151,9 +156,7 @@ export default function ArticleForm({
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            // 添加特殊标记，表明这是页面请求而非预加载
             'X-Page-Request': '1',
-            // 添加请求ID用于调试
             'X-Request-ID': `templates-${Date.now()}`
           }
         });
@@ -171,7 +174,8 @@ export default function ArticleForm({
             id: t.id,
             name: t.title || t.name || '未命名模板',
             description: t.description || '',
-            category: t.category || '未分类'
+            category: t.category || '未分类',
+            usage_count: t.usage_count || 0
           }));
           setTemplates(formattedTemplates);
           console.log('已设置模板数据:', formattedTemplates);
@@ -249,16 +253,26 @@ export default function ArticleForm({
           const formattedTopics = responseData.topics.map((t: any) => ({
             id: t.id,
             keyword: t.keyword || t.title || '未命名话题',
-            popularity: t.popularity || t.volume || t.score || 0,
-            date: t.created_at ? new Date(t.created_at).toLocaleDateString() : ''
+            volume: t.volume || t.popularity || t.score || 0,
+            trend: t.trend || (t.change_rate > 0 ? 'up' : t.change_rate < 0 ? 'down' : 'stable'),
+            created_at: t.created_at || new Date().toISOString()
           }));
           setHotTopics(formattedTopics);
           console.log('已设置热点话题数据:', formattedTopics);
           
           // 保存到本地缓存
           try {
-            safeLocalStorage.setItem('hotTopicsCache', JSON.stringify(formattedTopics));
-            safeLocalStorage.setItem('hotTopicsCacheTime', Date.now().toString());
+            // 限制数据大小，最多缓存100条热点话题
+            const limitedTopics = formattedTopics.slice(0, 100);
+            
+            // 估算数据大小，如果超过1MB则不缓存
+            const dataString = JSON.stringify(limitedTopics);
+            if (dataString.length > 1024 * 1024) {
+              console.warn('热点话题数据过大，跳过本地缓存');
+            } else {
+              safeLocalStorage.setItem('hotTopicsCache', dataString);
+              safeLocalStorage.setItem('hotTopicsCacheTime', Date.now().toString());
+            }
           } catch (e) {
             console.warn('缓存热点话题数据失败:', e);
           }
@@ -437,13 +451,115 @@ export default function ArticleForm({
     return statusMap[status] || '草稿';
   };
   
+  // 添加刷新数据的函数
+  const handleRefreshData = async () => {
+    try {
+      setIsRefreshing(true);
+      
+      // 清除本地缓存
+      safeLocalStorage.removeItem('hotTopicsCache');
+      safeLocalStorage.removeItem('hotTopicsCacheTime');
+      safeLocalStorage.removeItem('templatesCache');
+      safeLocalStorage.removeItem('templatesCacheTime');
+      
+      // 重新获取热点话题
+      setLoadingHotTopics(true);
+      try {
+        const response = await fetch('/api/hot-topics', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Page-Request': '1',
+            'X-Request-ID': `hot-topics-refresh-${Date.now()}`,
+            'X-Cache-Bust': Date.now().toString()
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('刷新热点话题失败');
+        }
+        
+        const responseData = await response.json();
+        
+        if (responseData && responseData.topics && Array.isArray(responseData.topics)) {
+          const formattedTopics = responseData.topics.map((t: any) => ({
+            id: t.id,
+            keyword: t.keyword || t.title || '未命名话题',
+            volume: t.volume || t.popularity || t.score || 0,
+            trend: t.trend || (t.change_rate > 0 ? 'up' : t.change_rate < 0 ? 'down' : 'stable'),
+            created_at: t.created_at || new Date().toISOString()
+          }));
+          setHotTopics(formattedTopics);
+        }
+      } catch (error) {
+        console.error('刷新热点话题失败:', error);
+        messageApi.error('刷新热点话题失败');
+      } finally {
+        setLoadingHotTopics(false);
+      }
+      
+      // 重新获取模板
+      setLoadingTemplates(true);
+      try {
+        const response = await fetch('/api/templates', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Page-Request': '1',
+            'X-Request-ID': `templates-refresh-${Date.now()}`,
+            'X-Cache-Bust': Date.now().toString()
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('刷新模板列表失败');
+        }
+        
+        const responseData = await response.json();
+        
+        if (responseData && responseData.templates && Array.isArray(responseData.templates)) {
+          const formattedTemplates = responseData.templates.map((t: any) => ({
+            id: t.id,
+            name: t.title || t.name || '未命名模板',
+            description: t.description || '',
+            category: t.category || '未分类',
+            usage_count: t.usage_count || 0
+          }));
+          setTemplates(formattedTemplates);
+        }
+      } catch (error) {
+        console.error('刷新模板列表失败:', error);
+        messageApi.error('刷新模板列表失败');
+      } finally {
+        setLoadingTemplates(false);
+      }
+      
+      messageApi.success('数据已刷新');
+    } catch (error) {
+      console.error('刷新数据失败:', error);
+      messageApi.error('刷新数据失败');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+  
   return (
     <>
       {contextHolder}
       {isLoading && <FullscreenLoading visible={isLoading} text="保存中..." />}
       
       <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px' }}>
-        <SectionTitle level={2}>编辑文章</SectionTitle>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <SectionTitle level={2}>编辑文章</SectionTitle>
+          <Button 
+            type="default" 
+            icon={<ReloadOutlined />} 
+            onClick={handleRefreshData} 
+            loading={isRefreshing}
+          >
+            刷新数据
+          </Button>
+        </div>
         
         <Card style={{ marginBottom: '24px' }}>
           <FormField 
@@ -487,6 +603,7 @@ export default function ArticleForm({
               coverImage={articleData.coverImage} 
               setCoverImage={(url) => handleChange('coverImage', url)} 
               disabled={articleData.status === 'published'}
+              articleId={articleData.id !== 'new' ? articleData.id : undefined}
             />
           </FormField>
           
@@ -551,17 +668,19 @@ export default function ArticleForm({
                 filterOption={(input, option) => 
                   (option?.label?.toString().toLowerCase() || '').includes(input.toLowerCase())
                 }
+                optionLabelProp="label"
               >
                 {hotTopics.map(topic => (
                   <Option 
                     key={topic.id} 
                     value={topic.id}
-                    label={topic.keyword}
+                    label={`${topic.keyword} (热度: ${topic.volume})`}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>{topic.keyword}</span>
                       <span style={{ 
-                        color: topic.trend === 'up' ? '#52c41a' : topic.trend === 'down' ? '#f5222d' : '#1890ff'
+                        color: topic.trend === 'up' ? '#52c41a' : topic.trend === 'down' ? '#f5222d' : '#1890ff',
+                        fontWeight: 'bold'
                       }}>
                         热度: {topic.volume}
                       </span>
@@ -574,16 +693,6 @@ export default function ArticleForm({
                   未找到任何热点话题，请确认API是否正常工作
                 </div>
               )}
-              {articleData.hotTopicId && 
-                <div style={{marginTop: 4, fontSize: 12, color: '#888'}}>
-                  ID: {articleData.hotTopicId}
-                  {!hotTopics.some(t => t.id === articleData.hotTopicId) && (
-                    <span style={{color: '#ff4d4f', marginLeft: 8}}>
-                      (警告：当前选中的热点话题ID未在列表中找到)
-                    </span>
-                  )}
-                </div>
-              }
             </FormField>
 
             <FormField
@@ -601,12 +710,43 @@ export default function ArticleForm({
                 notFoundContent={loadingTemplates ? <Spin size="small" /> : "暂无模板"}
                 showSearch
                 filterOption={(input, option) => 
-                  (option?.children?.toString().toLowerCase() || '').includes(input.toLowerCase())
+                  (option?.label?.toString().toLowerCase() || '').includes(input.toLowerCase())
                 }
+                optionLabelProp="label"
               >
                 {templates.map(template => (
-                  <Option key={template.id} value={template.id}>
-                    {template.name} - {template.category}
+                  <Option 
+                    key={template.id} 
+                    value={template.id}
+                    label={`${template.name} (${template.category})`}
+                  >
+                    <div style={{ padding: '4px 0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 'bold' }}>{template.name}</span>
+                        <Tag color="blue">{template.category}</Tag>
+                      </div>
+                      {template.description && (
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: '#666', 
+                          marginTop: '4px',
+                          lineHeight: '1.4',
+                          maxHeight: '36px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical'
+                        }}>
+                          {template.description}
+                        </div>
+                      )}
+                      {template.usage_count > 0 && (
+                        <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                          已使用次数: {template.usage_count}
+                        </div>
+                      )}
+                    </div>
                   </Option>
                 ))}
               </Select>
@@ -615,16 +755,6 @@ export default function ArticleForm({
                   未找到任何模板，请确认API是否正常工作
                 </div>
               )}
-              {articleData.templateId && 
-                <div style={{marginTop: 4, fontSize: 12, color: '#888'}}>
-                  ID: {articleData.templateId}
-                  {!templates.some(t => t.id === articleData.templateId) && (
-                    <span style={{color: '#ff4d4f', marginLeft: 8}}>
-                      (警告：当前选中的模板ID未在列表中找到)
-                    </span>
-                  )}
-                </div>
-              }
             </FormField>
 
             <FormField

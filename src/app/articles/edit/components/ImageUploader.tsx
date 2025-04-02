@@ -9,12 +9,13 @@ interface ImageUploaderProps {
   coverImage: string;
   setCoverImage: (url: string) => void;
   disabled?: boolean;
+  articleId?: string;
 }
 
 /**
  * 图片上传组件，用于文章封面图片的上传和预览
  */
-export default function ImageUploader({ coverImage, setCoverImage, disabled = false }: ImageUploaderProps) {
+export default function ImageUploader({ coverImage, setCoverImage, disabled = false, articleId }: ImageUploaderProps) {
   const [fileList, setFileList] = useState<any[]>([]);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
@@ -74,60 +75,29 @@ export default function ImageUploader({ coverImage, setCoverImage, disabled = fa
   
   // 处理上传状态变化
   const handleChange = ({ file, fileList }: any) => {
-    // 克隆文件列表以避免副作用
-    const newFileList = [...fileList];
-    
-    // 限制只显示最新上传的一张图片
-    const latestFile = newFileList.slice(-1);
-    setFileList(latestFile);
-    
-    // 处理上传状态
     if (file.status === 'uploading') {
       setUploading(true);
     } else if (file.status === 'done') {
       setUploading(false);
+      setFileList(fileList);
       
-      // 服务器返回的URL
+      // 文件上传完成且成功，获取URL
       if (file.response && file.response.url) {
         setCoverImage(file.response.url);
-        
-        // 显示适当的消息
-        if (file.response.warning) {
-          // 使用notification代替message显示更友好的警告
-          if (notificationComponent) {
-            notificationComponent.warning({
-              message: '上传提示',
-              description: file.response.warning,
-              placement: 'bottomRight'
-            });
-          } else {
-            message.warning(file.response.warning);
-          }
-        } else {
-          // 使用notification代替message显示更友好的成功消息
-          if (notificationComponent) {
-            notificationComponent.success({
-              message: '上传成功',
-              description: '封面图片已成功上传',
-              placement: 'bottomRight'
-            });
-          } else {
-            message.success('封面图上传成功');
-          }
-        }
       }
     } else if (file.status === 'error') {
       setUploading(false);
+      setFileList(fileList);
       
       // 使用notification显示更详细的错误
       if (notificationComponent) {
         notificationComponent.error({
           message: '上传失败',
-          description: '图片上传失败，将使用本地预览。发布时可能无法显示此图片。',
+          description: file.error?.message || '图片上传失败，请重试',
           placement: 'bottomRight'
         });
       } else {
-        message.error('图片上传失败，请重试');
+        message.error(file.error?.message || '图片上传失败，请重试');
       }
       
       // 尝试本地预览
@@ -198,6 +168,55 @@ export default function ImageUploader({ coverImage, setCoverImage, disabled = fa
     );
   };
   
+  // 处理图片上传
+  const customRequest = async (options: any) => {
+    const { file, onSuccess, onError, onProgress } = options;
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // 如果有文章ID，添加到请求中
+    if (articleId) {
+      formData.append('articleId', articleId);
+    }
+    
+    try {
+      setUploading(true);
+      
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        // 显示错误消息
+        message.error(result.message || result.error || '上传失败');
+        onError(new Error(result.message || result.error || '上传失败'));
+        return;
+      }
+      
+      if (result.warning) {
+        message.warning(result.warning);
+      }
+      
+      if (result.url) {
+        setCoverImage(result.url);
+        onSuccess(result, file);
+      } else {
+        const errorMsg = '未获取到上传的URL';
+        message.error(errorMsg);
+        onError(new Error(errorMsg));
+      }
+    } catch (error) {
+      console.error('上传出错:', error);
+      message.error(error instanceof Error ? error.message : '图片上传失败');
+      onError(error);
+    } finally {
+      setUploading(false);
+    }
+  };
+  
   // 如果禁用或者组件未加载，只显示预览
   if (disabled) {
     return coverImage ? (
@@ -241,6 +260,7 @@ export default function ImageUploader({ coverImage, setCoverImage, disabled = fa
         accept="image/jpeg,image/png,image/gif,image/webp"
         name="file"
         maxCount={1}
+        customRequest={customRequest}
       >
         {fileList.length >= 1 ? null : renderUploadButton()}
       </UploadComponent>
