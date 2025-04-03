@@ -32,6 +32,14 @@ export interface Article {
   author?: string;
   viewCount?: number;
   usageCount?: number;
+  // Dify相关字段
+  source?: string;
+  difyMessageId?: string;
+  difyConversationId?: string;
+  difyWorkflowRunId?: string;
+  difyResult?: any;
+  isDify?: boolean;
+  aiGenerated?: boolean;
 }
 
 // 创建/更新文章请求接口

@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Row, Col, Card, Statistic } from 'antd';
 import { FileTextOutlined, ClockCircleOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';

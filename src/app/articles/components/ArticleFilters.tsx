@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Card, Form, Input, Select, DatePicker, Row, Col, Button, Tag, Space } from 'antd';
 import { SearchOutlined, ClearOutlined } from '@ant-design/icons';

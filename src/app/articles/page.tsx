@@ -613,7 +613,14 @@ export default function ArticlesPage() {
       coverImage: articleData.coverImage || 'https://img0.baidu.com/it/u=4160253413,3711804954&fm=253&fmt=auto&app=138&f=JPEG?w=708&h=500',
       keywords: articleData.keywords || [],
       status: '待审核' as ArticleStatus,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      // 添加Dify相关字段
+      source: articleData.source || '本地模板',
+      difyMessageId: articleData.difyMessageId || '',
+      difyConversationId: articleData.difyConversationId || '',
+      // 如果是Dify生成的，记录下来
+      isDify: !!articleData.difyMessageId,
+      aiGenerated: true
     };
     
     // 将新文章添加到列表中
@@ -625,7 +632,11 @@ export default function ArticlesPage() {
       return [newArticle, ...prevArticles];
     });
     
-    messageApi.success('AI文章生成已提交，请稍后查看结果');
+    const successMessage = articleData.difyMessageId 
+      ? 'Dify AI文章生成已提交，请稍后查看结果' 
+      : 'AI文章生成已提交，请稍后查看结果';
+    
+    messageApi.success(successMessage);
     handleCloseModal();
   };
   

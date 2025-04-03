@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Table, Tag, Button, Space, Dropdown, Menu } from 'antd';
 import { MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';

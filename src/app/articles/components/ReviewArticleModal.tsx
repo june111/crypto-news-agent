@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Modal, Button, Typography, Space, Spin, Divider, Card, Image } from 'antd';
 import { CheckOutlined, CloseOutlined, FileTextOutlined, PictureOutlined } from '@ant-design/icons';

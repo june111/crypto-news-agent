@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { Modal, Form, Select, Input, Tag, Typography } from 'antd';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Modal, Form, Select, Input, Tag, Typography, Spin, message } from 'antd';
 import { RobotOutlined } from '@ant-design/icons';
 import styles from '../articles.module.css';
 import { Article } from '@/types/article';
+import { DifyClient } from '@/lib/services/dify/client';
 
 // 统一使用百度图片链接
 const COVER_IMAGE = "https://img0.baidu.com/it/u=4160253413,3711804954&fm=253&fmt=auto&app=138&f=JPEG?w=708&h=500";
@@ -40,6 +43,10 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
   const [form] = Form.useForm();
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [difyParams, setDifyParams] = useState<any>(null);
+  const [difyLoading, setDifyLoading] = useState(false);
+  const [messageApi, contextHolder] = message.useMessage();
   
   // 模拟热点关键词数据
   const [hotTopics, setHotTopics] = useState<HotTopic[]>([
@@ -57,6 +64,32 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
     { id: '3', title: '市场动态模板', description: '报道加密货币市场的最新动态', category: '报道' },
     { id: '4', title: '技术解析模板', description: '深入解析区块链技术细节', category: '技术' }
   ]);
+
+  // 获取Dify参数
+  useEffect(() => {
+    if (visible && !difyParams) {
+      fetchDifyParameters();
+    }
+  }, [visible]);
+
+  // 获取Dify参数
+  const fetchDifyParameters = async () => {
+    try {
+      setDifyLoading(true);
+      const result = await DifyClient.getParameters();
+      if (result.success) {
+        setDifyParams(result);
+        console.log('Dify参数:', result);
+      } else {
+        message.error('无法获取Dify参数: ' + (result.error || '未知错误'));
+      }
+    } catch (error) {
+      console.error('获取Dify参数异常:', error);
+      message.error('获取Dify参数失败');
+    } finally {
+      setDifyLoading(false);
+    }
+  };
   
   // 处理关键词变化
   const handleKeywordsChange = (values: string[]) => {
@@ -82,30 +115,69 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
   };
   
   // 处理表单提交
-  const handleSubmit = () => {
-    if (selectedKeywords.length > 0 && selectedTemplate) {
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      
+      // 验证关键词和模板已选择
+      if (selectedKeywords.length === 0 || !selectedTemplate) {
+        message.warning('请至少选择一个关键词和模板');
+        setLoading(false);
+        return;
+      }
+
       // 获取选中的模板
       const template = templates.find(t => t.id === selectedTemplate);
       
       // 生成标题 (使用第一个关键词作为标题的一部分)
       const mainKeyword = selectedKeywords[0];
-      const generatedTitle = `关于${mainKeyword}的${template?.category}`;
-      
-      // 准备文章数据
-      const articleData = {
-        title: generatedTitle,
-        category: template?.category || '区块链',
-        keywords: selectedKeywords,
-        summary: `使用${template?.title}生成的关于${mainKeyword}的${template?.category}文章`,
-        coverImage: COVER_IMAGE, // 使用统一的百度图片链接
-        content: '正在生成文章内容...'
-      };
-      
-      // 调用保存回调
-      onSave(articleData);
-      
-      // 重置表单和状态
-      resetForm();
+      const generatedTitle = `关于${mainKeyword}的${template?.category || '分析'}`;
+
+      // 使用Dify工作流API生成内容
+      const workflowResult = await DifyClient.runWorkflow({
+        inputs: {
+          topic: mainKeyword, // 关键词映射到topic
+          type: 'content', // 固定为content类型
+          title: generatedTitle,
+          template: template?.title || '默认模板', // 模板映射到template
+          describe: `生成一篇关于${mainKeyword}的${template?.category || '分析'}文章，包含详细内容`,
+          content: null
+        }
+      });
+
+      if (workflowResult.success) {
+        // 准备文章数据
+        const content = typeof workflowResult.result === 'string' 
+          ? workflowResult.result 
+          : workflowResult.result?.content || '正在生成中...';
+
+        const articleData = {
+          title: generatedTitle,
+          category: template?.category || '区块链',
+          keywords: selectedKeywords,
+          summary: `使用Dify AI生成的关于${mainKeyword}的${template?.category || '分析'}文章`,
+          coverImage: COVER_IMAGE,
+          content: content,
+          source: 'Dify AI',
+          difyWorkflowRunId: workflowResult.workflowRunId,
+          difyResult: workflowResult.result
+        };
+        
+        // 调用保存回调
+        onSave(articleData);
+        
+        // 重置表单和状态
+        resetForm();
+        
+        messageApi.success('文章生成请求已提交，正在处理中');
+      } else {
+        message.error('生成内容失败: ' + (workflowResult.error || '未知错误'));
+      }
+    } catch (error) {
+      console.error('生成文章异常:', error);
+      message.error('生成文章失败');
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -138,14 +210,21 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
       okButtonProps={{ 
         disabled: !(selectedKeywords.length > 0 && selectedTemplate),
         type: 'primary',
-        style: { borderRadius: '4px' }
+        style: { borderRadius: '4px' },
+        loading: loading
       }}
       cancelButtonProps={{ style: { borderRadius: '4px' } }}
     >
+      {contextHolder}
       <Form form={form} layout="vertical">
-        {/* 选择/输入关键词 */}
+        {/* 任务类型标识 - 固定为content */}
+        <div className={styles.modalSection}>
+          <Tag color="blue">任务类型: content</Tag>
+        </div>
+        
+        {/* 选择/输入关键词 - 映射到topic */}
         <Form.Item 
-          label="关键词" 
+          label="关键词 (topic)" 
           rules={[{ required: true, message: '请选择至少一个关键词' }]}
           className={styles.modalSection}
         >
@@ -184,9 +263,9 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
           </Text>
         </Form.Item>
         
-        {/* 选择文章模板 */}
+        {/* 选择文章模板 - 映射到template */}
         <Form.Item 
-          label="文章模板" 
+          label="文章模板 (template)" 
           rules={[{ required: true, message: '请选择文章模板' }]}
           className={styles.modalSection}
         >
@@ -215,6 +294,13 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
             ))}
           </Select>
         </Form.Item>
+
+        {/* Dify参数加载状态 */}
+        {difyLoading && (
+          <div style={{ textAlign: 'center', margin: '20px 0' }}>
+            <Spin tip="加载Dify参数中..." />
+          </div>
+        )}
       </Form>
     </Modal>
   );

@@ -30,7 +30,8 @@ import {
   FileImageOutlined,
   FileTextOutlined,
   FormOutlined,
-  CalendarOutlined
+  CalendarOutlined,
+  ApiOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing, fontSizes, borderRadius } from '@/styles/theme';
@@ -39,11 +40,17 @@ import dayjs from 'dayjs';
 // 注意：需要安装这个包来渲染markdown
 // 命令：npm install react-markdown
 import ReactMarkdown from 'react-markdown';
+import dynamic from 'next/dynamic';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
-const { TabPane } = Tabs;
+
+// 动态导入Dify任务组件，以避免SSR问题
+const DifyTasksComponent = dynamic(() => import('./dify-tasks'), { 
+  ssr: false,
+  loading: () => <div>正在加载Dify任务列表...</div>
+});
 
 // AI任务类型定义
 interface AITask {
@@ -128,6 +135,9 @@ const AITasksPage = () => {
       completedAt: '2025-03-28 16:32'
     }
   ]);
+  
+  // 添加tab选项卡状态
+  const [activeTab, setActiveTab] = useState('2');
   
   // 搜索相关状态
   const [completionDateRange, setCompletionDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
@@ -254,23 +264,18 @@ const AITasksPage = () => {
         return false;
       }
       
-      // 任务类型筛选
+      // 类型筛选
       if (selectedType && task.type !== selectedType) {
         return false;
       }
       
-      // 完成日期范围筛选
-      if (completionDateRange && completionDateRange[0] && completionDateRange[1]) {
-        // 只筛选已完成或失败的任务
-        if (!task.completedAt) {
-          return false;
-        }
-        
+      // 日期范围筛选
+      if (completionDateRange && completionDateRange[0] && completionDateRange[1] && task.completedAt) {
         const completedDate = dayjs(task.completedAt);
-        const startDate = completionDateRange[0].startOf('day');
-        const endDate = completionDateRange[1].endOf('day');
+        const startDate = completionDateRange[0];
+        const endDate = completionDateRange[1];
         
-        if (!completedDate.isAfter(startDate) || !completedDate.isBefore(endDate)) {
+        if (completedDate.isBefore(startDate) || completedDate.isAfter(endDate)) {
           return false;
         }
       }
@@ -285,100 +290,90 @@ const AITasksPage = () => {
       title: '任务名称',
       dataIndex: 'name',
       key: 'name',
-      ellipsis: true,
+      width: 250,
     },
     {
-      title: '任务类型',
+      title: '类型',
       dataIndex: 'type',
       key: 'type',
-      render: (type: AITask['type']) => {
-        const { icon, color } = getTypeInfo(type);
+      width: 120,
+      render: (type) => {
+        const typeInfo = getTypeInfo(type);
         return (
-          <Tag color={color} icon={icon}>
+          <Tag color={typeInfo.color} icon={typeInfo.icon}>
             {type}
           </Tag>
         );
       },
-      filters: [
-        { text: '封面图', value: '封面图' },
-        { text: '标题', value: '标题' },
-        { text: '文章内容', value: '文章内容' },
-      ],
-      onFilter: (value, record) => record.type === value,
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (status: AITask['status']) => (
-        <Tag color={getStatusColor(status)}>{status}</Tag>
+      width: 120,
+      render: (status) => (
+        <Tag color={getStatusColor(status)}>
+          {status}
+        </Tag>
       ),
-      filters: [
-        { text: '进行中', value: '进行中' },
-        { text: '已完成', value: '已完成' },
-        { text: '失败', value: '失败' },
-        { text: '排队中', value: '排队中' },
-      ],
-      onFilter: (value, record) => record.status === value,
     },
     {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      width: 180,
     },
     {
       title: '完成时间',
       dataIndex: 'completedAt',
       key: 'completedAt',
-      render: (text) => text || '-',
+      width: 180,
+      render: (completedAt) => completedAt || '-',
     },
     {
       title: '耗时',
       key: 'duration',
+      width: 100,
       render: (_, record) => formatDuration(calculateDuration(record.createdAt, record.completedAt)),
-      sorter: (a, b) => {
-        const durationA = calculateDuration(a.createdAt, a.completedAt) || 0;
-        const durationB = calculateDuration(b.createdAt, b.completedAt) || 0;
-        return durationA - durationB;
-      },
     },
     {
       title: '操作',
       key: 'action',
+      width: 200,
       render: (_, record) => (
-        <Space>
+        <Space size="small">
           {record.status === '已完成' && (
-            <Button
-              type="primary"
-              size="small"
+            <Button 
+              type="primary" 
+              size="small" 
               icon={<EyeOutlined />}
               onClick={() => handleViewResult(record.id)}
             >
               查看结果
             </Button>
           )}
-          {(record.status === '排队中' || record.status === '进行中') && (
+          
+          {(record.status === '进行中' || record.status === '排队中') && (
             <Popconfirm
-              title="确认取消"
-              description="确定要取消这个任务吗？"
+              title="确定要取消这个任务吗？"
               onConfirm={() => handleCancelTask(record.id)}
-              okText="确认"
+              okText="确定"
               cancelText="取消"
             >
-              <Button
-                danger
-                size="small"
+              <Button 
+                danger 
+                size="small" 
                 icon={<StopOutlined />}
               >
-                取消
+                取消任务
               </Button>
             </Popconfirm>
           )}
+          
           {record.status === '失败' && (
-            <Button
-              type="primary"
-              size="small"
+            <Button 
+              type="default" 
+              size="small" 
               icon={<ReloadOutlined />}
               onClick={() => handleRetryTask(record.id)}
             >
@@ -390,376 +385,213 @@ const AITasksPage = () => {
     },
   ];
   
-  // 渲染任务结果内容
+  // 渲染任务结果
   const renderTaskResult = () => {
     if (!currentTask || !currentTask.result) {
-      return <Empty description="暂无结果数据" />;
+      return <Empty description="没有可用的结果" />;
     }
     
-    const { type, result } = currentTask;
-    const duration = calculateDuration(currentTask.createdAt, currentTask.completedAt);
+    const { type } = currentTask;
+    const { template, keywords, content, summary, title, coverImage, generatedTitles } = currentTask.result;
     
     return (
       <div>
-        <Tabs defaultActiveKey="info">
-          <TabPane 
-            tab={<span><CalendarOutlined />基本信息</span>} 
-            key="info"
-          >
-            <Descriptions 
-              bordered 
-              column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
-              style={{ marginBottom: spacing.lg }}
-            >
-              <Descriptions.Item 
-                label="任务名称" 
-                labelStyle={{ fontWeight: 'bold' }}
-                span={2}
-              >
-                {currentTask.name}
+        {template && (
+          <Descriptions title="基本信息" bordered size="small" column={3} style={{ marginBottom: 16 }}>
+            <Descriptions.Item label="使用模板" span={3}>{template}</Descriptions.Item>
+            {keywords && keywords.length > 0 && (
+              <Descriptions.Item label="关键词" span={3}>
+                {keywords.map(keyword => (
+                  <Tag key={keyword} style={{ marginBottom: 8 }}>{keyword}</Tag>
+                ))}
               </Descriptions.Item>
-              
-              <Descriptions.Item 
-                label="任务类型" 
-                labelStyle={{ fontWeight: 'bold' }}
-              >
-                <Tag color={getTypeInfo(type).color} icon={getTypeInfo(type).icon}>
-                  {type}
-                </Tag>
-              </Descriptions.Item>
-              
-              <Descriptions.Item 
-                label="任务状态" 
-                labelStyle={{ fontWeight: 'bold' }}
-              >
-                <Tag color={getStatusColor(currentTask.status)}>
-                  {currentTask.status}
-                </Tag>
-              </Descriptions.Item>
-              
-              <Descriptions.Item 
-                label="创建时间" 
-                labelStyle={{ fontWeight: 'bold' }}
-              >
-                {currentTask.createdAt}
-              </Descriptions.Item>
-              
-              <Descriptions.Item 
-                label="完成时间" 
-                labelStyle={{ fontWeight: 'bold' }}
-              >
-                {currentTask.completedAt || '-'}
-              </Descriptions.Item>
-              
-              <Descriptions.Item 
-                label="耗时" 
-                labelStyle={{ fontWeight: 'bold' }}
-              >
-                {formatDuration(duration)}
-              </Descriptions.Item>
-              
-              <Descriptions.Item 
-                label="文章模板" 
-                labelStyle={{ fontWeight: 'bold' }}
-              >
-                {result.template || '-'}
-              </Descriptions.Item>
-              
-              <Descriptions.Item 
-                label="关键词" 
-                labelStyle={{ fontWeight: 'bold' }}
-                span={2}
-              >
-                {result.keywords ? 
-                  <Space wrap>
-                    {result.keywords.map((keyword, index) => (
-                      <Tag key={index} color="blue">{keyword}</Tag>
-                    ))}
-                  </Space> : '-'
-                }
-              </Descriptions.Item>
-            </Descriptions>
-          </TabPane>
-          
-          <TabPane 
-            tab={<span><FileTextOutlined />任务结果</span>} 
-            key="result"
-          >
-            {/* 封面图类型的结果展示 */}
-            {type === '封面图' && result.coverImage && (
-              <Card variant="borderless">
-                <div style={{ 
-                  textAlign: 'center', 
-                  padding: spacing.lg,
-                  backgroundColor: colors.backgroundLight,
-                  borderRadius: borderRadius.lg
-                }}>
-                  <Image 
-                    src={result.coverImage} 
-                    alt="封面图"
-                    style={{ 
-                      maxWidth: '100%',
-                      borderRadius: borderRadius.md,
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                    }}
-                  />
-                  <Text type="secondary" style={{ display: 'block', marginTop: spacing.md }}>
-                    生成的封面图
-                  </Text>
+            )}
+          </Descriptions>
+        )}
+        
+        <Divider />
+        
+        {type === '封面图' && coverImage && (
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <Image 
+              src={coverImage} 
+              alt="生成的封面图"
+              width={600}
+              style={{ maxWidth: '100%' }}
+            />
+          </div>
+        )}
+        
+        {type === '标题' && generatedTitles && generatedTitles.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <Title level={5}>生成的标题候选</Title>
+            <List
+              bordered
+              dataSource={generatedTitles}
+              renderItem={(item, index) => (
+                <List.Item>
+                  <Typography.Text mark>[选项 {index + 1}]</Typography.Text> {item}
+                </List.Item>
+              )}
+            />
+          </div>
+        )}
+        
+        {type === '文章内容' && (
+          <>
+            {title && (
+              <div style={{ marginBottom: 16 }}>
+                <Title level={5}>标题</Title>
+                <Paragraph>{title}</Paragraph>
+              </div>
+            )}
+            
+            {summary && (
+              <div style={{ marginBottom: 16 }}>
+                <Title level={5}>摘要</Title>
+                <Paragraph>{summary}</Paragraph>
+              </div>
+            )}
+            
+            {content && (
+              <div style={{ marginBottom: 16 }}>
+                <Title level={5}>正文</Title>
+                <div className="markdown-content">
+                  <ReactMarkdown>{content}</ReactMarkdown>
                 </div>
-              </Card>
-            )}
-            
-            {/* 标题类型的结果展示 - 单独处理，可能有多个候选标题 */}
-            {type === '标题' && (
-              <div className="title-result">
-                <Card 
-                  bordered
-                  headStyle={{ backgroundColor: colors.backgroundLight }}
-                  title={
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <FormOutlined style={{ marginRight: spacing.sm, color: colors.primary }} />
-                      <Text strong>生成的标题候选</Text>
-                    </div>
-                  }
-                >
-                  {result.generatedTitles && result.generatedTitles.length > 0 ? (
-                    <List
-                      itemLayout="vertical"
-                      dataSource={result.generatedTitles}
-                      renderItem={(title, index) => (
-                        <List.Item
-                          key={index}
-                          style={{
-                            padding: spacing.md,
-                            backgroundColor: index % 2 === 0 ? colors.backgroundLight : 'white',
-                            borderRadius: borderRadius.sm,
-                            marginBottom: spacing.md
-                          }}
-                        >
-                          <Row align="middle">
-                            <Col span={2} style={{ textAlign: 'center' }}>
-                              <Tag color={colors.primary}>{index + 1}</Tag>
-                            </Col>
-                            <Col span={22}>
-                              <Title 
-                                level={4} 
-                                style={{ 
-                                  margin: 0,
-                                  color: index === 0 ? colors.primary : 'inherit'
-                                }}
-                              >
-                                {title}
-                              </Title>
-                            </Col>
-                          </Row>
-                        </List.Item>
-                      )}
-                    />
-                  ) : result.title ? (
-                    <div style={{ padding: spacing.lg, textAlign: 'center' }}>
-                      <Title 
-                        level={3} 
-                        style={{ 
-                          color: colors.primary,
-                          margin: `${spacing.md} 0`
-                        }}
-                      >
-                        {result.title}
-                      </Title>
-                    </div>
-                  ) : (
-                    <Empty description="暂无标题数据" />
-                  )}
-                </Card>
               </div>
             )}
-            
-            {/* 文章内容类型的结果展示 */}
-            {type === '文章内容' && (
-              <div className="article-result">
-                {result.summary && (
-                  <Card 
-                    title={
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <FileTextOutlined style={{ marginRight: spacing.sm, color: colors.primary }} />
-                        <Text strong>文章摘要</Text>
-                      </div>
-                    }
-                    bordered
-                    style={{ marginBottom: spacing.lg }}
-                    headStyle={{ backgroundColor: colors.backgroundLight }}
-                  >
-                    <Paragraph 
-                      style={{ 
-                        fontSize: fontSizes.md,
-                        lineHeight: 1.8,
-                        margin: spacing.md
-                      }}
-                    >
-                      {result.summary}
-                    </Paragraph>
-                  </Card>
-                )}
-                
-                {result.content && (
-                  <Card 
-                    title={
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <FileTextOutlined style={{ marginRight: spacing.sm, color: colors.primary }} />
-                        <Text strong>文章正文</Text>
-                      </div>
-                    }
-                    bordered
-                    headStyle={{ backgroundColor: colors.backgroundLight }}
-                  >
-                    <div 
-                      className="markdown-content" 
-                      style={{ 
-                        padding: spacing.lg,
-                        fontSize: fontSizes.md,
-                        lineHeight: 1.8
-                      }}
-                    >
-                      <ReactMarkdown>
-                        {result.content}
-                      </ReactMarkdown>
-                    </div>
-                  </Card>
-                )}
-              </div>
-            )}
-          </TabPane>
-        </Tabs>
+          </>
+        )}
       </div>
     );
   };
   
   return (
     <DashboardLayout>
-      <div style={{ padding: spacing.xl }}>
-        <Title level={2} style={{ marginBottom: spacing.sm }}>AI任务列表</Title>
-        <Text type="secondary" style={{ fontSize: fontSizes.lg, display: 'block', marginBottom: spacing.xl }}>
-          管理和监控AI自动化任务
-        </Text>
-        
-        <Divider />
-        
-        {/* 搜索条件区域 */}
-        <div style={{ 
-          backgroundColor: colors.backgroundLight,
-          padding: spacing.lg,
-          borderRadius: borderRadius.md,
-          marginBottom: spacing.xl,
-          border: `1px solid ${colors.border}`
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: spacing.md
-          }}>
-            <Title level={4} style={{ margin: 0 }}>搜索条件</Title>
-            
-            <div style={{ display: 'flex', gap: spacing.md }}>
-              <Button onClick={handleClearFilters}>
-                清空筛选
-              </Button>
-            </div>
-          </div>
-          
-          {/* 搜索条件网格布局 - 使用Ant Design的Form和Grid */}
-          <Form layout="vertical">
-            <Row gutter={16}>
-              {/* 完成时间范围搜索 */}
-              <Col span={8}>
-                <Form.Item label="完成时间范围">
-                  <RangePicker
-                    value={completionDateRange}
-                    onChange={handleDateRangeChange}
-                    style={{ width: '100%' }}
-                    placeholder={['开始日期', '结束日期']}
-                  />
-                </Form.Item>
-              </Col>
-              
-              {/* 状态搜索 */}
-              <Col span={8}>
-                <Form.Item label="任务状态">
-                  <Select
-                    value={selectedStatus}
-                    onChange={handleStatusChange}
-                    placeholder="请选择任务状态"
-                    style={{ width: '100%' }}
-                    allowClear
-                  >
-                    <Option value="进行中">进行中</Option>
-                    <Option value="已完成">已完成</Option>
-                    <Option value="失败">失败</Option>
-                    <Option value="排队中">排队中</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-
-              {/* 任务类型搜索 */}
-              <Col span={8}>
-                <Form.Item label="任务类型">
-                  <Select
-                    value={selectedType}
-                    onChange={handleTypeChange}
-                    placeholder="请选择任务类型"
-                    style={{ width: '100%' }}
-                    allowClear
-                  >
-                    <Option value="封面图">封面图</Option>
-                    <Option value="标题">标题</Option>
-                    <Option value="文章内容">文章内容</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
-          </Form>
-        </div>
-        
-        <Table 
-          columns={columns}
-          dataSource={filteredTasks}
-          rowKey="id"
-          pagination={{ 
-            defaultPageSize: 10,
-            showSizeChanger: true,
-            pageSizeOptions: ['5', '10', '20'],
-            showTotal: (total) => `共 ${total} 条任务`
-          }}
-          bordered
-          size="middle"
-        />
-        
-        {/* 任务结果查看弹窗 */}
-        <Modal
-          open={isResultModalOpen}
-          title={
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <EyeOutlined style={{ marginRight: spacing.sm }} />
-              任务结果查看
-            </div>
+      <Row>
+        <Col span={24}>
+          <Title level={2}>AI任务管理</Title>
+          <Text type="secondary">
+            管理和监控所有AI任务的执行情况，包括标题生成、内容创作和图像生成任务。
+          </Text>
+        </Col>
+      </Row>
+      
+      <Divider />
+      
+      <Tabs 
+        activeKey={activeTab} 
+        onChange={setActiveTab}
+        items={[
+          {
+            key: '1',
+            label: (
+              <span>
+                <CalendarOutlined />
+                内部AI任务
+              </span>
+            ),
+            children: (
+              <>
+                <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                  <Col xs={24} md={8}>
+                    <Form layout="vertical">
+                      <Form.Item label="完成日期范围">
+                        <RangePicker 
+                          value={completionDateRange}
+                          onChange={handleDateRangeChange}
+                          style={{ width: '100%' }}
+                        />
+                      </Form.Item>
+                    </Form>
+                  </Col>
+                  <Col xs={24} md={6}>
+                    <Form layout="vertical">
+                      <Form.Item label="任务状态">
+                        <Select 
+                          placeholder="选择状态" 
+                          style={{ width: '100%' }}
+                          value={selectedStatus}
+                          onChange={handleStatusChange}
+                          allowClear
+                        >
+                          <Option value="进行中">进行中</Option>
+                          <Option value="已完成">已完成</Option>
+                          <Option value="失败">失败</Option>
+                          <Option value="排队中">排队中</Option>
+                        </Select>
+                      </Form.Item>
+                    </Form>
+                  </Col>
+                  <Col xs={24} md={6}>
+                    <Form layout="vertical">
+                      <Form.Item label="任务类型">
+                        <Select 
+                          placeholder="选择类型" 
+                          style={{ width: '100%' }}
+                          value={selectedType}
+                          onChange={handleTypeChange}
+                          allowClear
+                        >
+                          <Option value="封面图">封面图</Option>
+                          <Option value="标题">标题</Option>
+                          <Option value="文章内容">文章内容</Option>
+                        </Select>
+                      </Form.Item>
+                    </Form>
+                  </Col>
+                  <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <Button 
+                      icon={<ReloadOutlined />} 
+                      onClick={handleClearFilters}
+                      style={{ marginBottom: 24 }}
+                    >
+                      重置筛选
+                    </Button>
+                  </Col>
+                </Row>
+                
+                <Table 
+                  columns={columns} 
+                  dataSource={filteredTasks} 
+                  rowKey="id"
+                  pagination={{ 
+                    pageSize: 10, 
+                    showSizeChanger: true, 
+                    showTotal: (total) => `共 ${total} 个任务`
+                  }}
+                />
+              </>
+            )
+          },
+          {
+            key: '2',
+            label: (
+              <span>
+                <ApiOutlined />
+                Dify任务列表
+              </span>
+            ),
+            children: <DifyTasksComponent />
           }
-          onCancel={handleCloseResultModal}
-          footer={[
-            <Button key="close" type="primary" onClick={handleCloseResultModal}>
-              关闭
-            </Button>
-          ]}
-          width={800}
-          bodyStyle={{ 
-            maxHeight: '75vh', 
-            overflow: 'auto',
-            padding: spacing.lg
-          }}
-        >
-          {renderTaskResult()}
-        </Modal>
-      </div>
+        ]}
+      />
+      
+      {/* 任务结果查看弹窗 */}
+      <Modal
+        title={`任务结果 - ${currentTask?.name}`}
+        open={isResultModalOpen}
+        onCancel={handleCloseResultModal}
+        footer={[
+          <Button key="close" onClick={handleCloseResultModal}>
+            关闭
+          </Button>
+        ]}
+        width={800}
+      >
+        {renderTaskResult()}
+      </Modal>
     </DashboardLayout>
   );
 };
