@@ -258,6 +258,11 @@ const AITasksPage = () => {
   
   // 筛选后的任务数据
   const filteredTasks = useMemo(() => {
+    if (!Array.isArray(tasks)) {
+      console.warn('tasks不是有效数组:', tasks);
+      return [];
+    }
+    
     return tasks.filter(task => {
       // 状态筛选
       if (selectedStatus && task.status !== selectedStatus) {
@@ -387,7 +392,11 @@ const AITasksPage = () => {
   
   // 渲染任务结果
   const renderTaskResult = () => {
-    if (!currentTask || !currentTask.result) {
+    if (!currentTask) {
+      return <Empty description="没有可用的任务" />;
+    }
+    
+    if (!currentTask.result) {
       return <Empty description="没有可用的结果" />;
     }
     
@@ -396,18 +405,16 @@ const AITasksPage = () => {
     
     return (
       <div>
-        {template && (
-          <Descriptions title="基本信息" bordered size="small" column={3} style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="使用模板" span={3}>{template}</Descriptions.Item>
-            {keywords && keywords.length > 0 && (
-              <Descriptions.Item label="关键词" span={3}>
-                {keywords.map(keyword => (
-                  <Tag key={keyword} style={{ marginBottom: 8 }}>{keyword}</Tag>
-                ))}
-              </Descriptions.Item>
-            )}
-          </Descriptions>
-        )}
+        <Descriptions title="基本信息" bordered size="small" column={3} style={{ marginBottom: 16 }}>
+          <Descriptions.Item label="使用模板" span={3}>{template || '无模板信息'}</Descriptions.Item>
+          {keywords && Array.isArray(keywords) && keywords.length > 0 && (
+            <Descriptions.Item label="关键词" span={3}>
+              {keywords.map(keyword => (
+                <Tag key={keyword} style={{ marginBottom: 8 }}>{keyword}</Tag>
+              ))}
+            </Descriptions.Item>
+          )}
+        </Descriptions>
         
         <Divider />
         
@@ -422,7 +429,7 @@ const AITasksPage = () => {
           </div>
         )}
         
-        {type === '标题' && generatedTitles && generatedTitles.length > 0 && (
+        {type === '标题' && generatedTitles && Array.isArray(generatedTitles) && generatedTitles.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <Title level={5}>生成的标题候选</Title>
             <List
@@ -554,7 +561,7 @@ const AITasksPage = () => {
                 
                 <Table 
                   columns={columns} 
-                  dataSource={filteredTasks} 
+                  dataSource={Array.isArray(filteredTasks) ? filteredTasks : []} 
                   rowKey="id"
                   pagination={{ 
                     pageSize: 10, 

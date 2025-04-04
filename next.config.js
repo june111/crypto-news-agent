@@ -10,6 +10,11 @@ const nextConfig = {
     // 忽略TypeScript错误，以便构建可以成功完成
     ignoreBuildErrors: true,
   },
+  // 环境变量配置，确保构建时可用
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: 'https://ogfhdqvpiuyvnpxtrytc.supabase.co',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZmhkcXZwaXV5dm5weHRyeXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NDMsImV4cCI6MjA1ODg5NTk0M30.ND9VlhWkrNLKJ85LKOg8H9b1JlA-5AyNk0ETxoOgFUs',
+  },
   // 减少开发构建日志输出
   onDemandEntries: {
     // 页面保持活跃时间（毫秒）
@@ -32,20 +37,16 @@ const nextConfig = {
       ];
     }
     
+    // 设置全局对象为'this'，确保在不同环境中一致性
+    config.output = {
+      ...config.output,
+      globalObject: 'this'
+    };
+    
     // 开发模式下的优化
     if (dev) {
       // 注意: Next.js不允许在开发模式下修改devtool
       // config.devtool = 'eval-source-map'; // 移除这一行
-      
-      // 仅在生产构建中使用source-map-loader
-      // 在开发模式下不需要这个优化，它可能会导致性能问题
-      /* 移除这部分代码
-      config.module.rules.push({
-        test: /node_modules[\\/](react|react-dom|@ant-design|antd|langchain|@langchain)[\\/]/,
-        use: 'source-map-loader',
-        enforce: 'pre',
-      });
-      */
     }
 
     // 生产模式下的优化
@@ -85,7 +86,7 @@ const nextConfig = {
 
       // 在生产模式下使用source-map-loader排除大型依赖
       config.module.rules.push({
-        test: /node_modules[\\/](react|react-dom|@ant-design|antd|langchain|@langchain)[\\/]/,
+        test: /node_modules[\\/](react|react-dom|@ant-design|antd)[\\/]/,
         use: 'source-map-loader',
         enforce: 'pre',
       });
@@ -95,7 +96,7 @@ const nextConfig = {
   },
   // 减少不必要的polyfills
   experimental: {
-    optimizePackageImports: ['antd', '@ant-design/icons', 'langchain'],
+    optimizePackageImports: ['antd', '@ant-design/icons'],
   },
   // 提高编译缓存的效率
   distDir: '.next',

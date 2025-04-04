@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import db, { initDatabaseOnce } from '@/lib/db';
 import { HotTopicFilter } from '@/lib/db/repositories/hotTopicsRepository';
 import { logInfo, logError } from '@/lib/db/utils/logger';
+import { v4 as uuidv4 } from 'uuid';
 
 // GET: 获取热点话题列表
 export async function GET(request: NextRequest) {
@@ -43,14 +44,43 @@ export async function GET(request: NextRequest) {
     // 获取热点话题
     const topics = await db.hotTopics.getAllHotTopics(filter);
     
-    logInfo('热点话题原始数据', { count: topics.length, sample: topics.slice(0, 2) });
+    // 确保topics是数组
+    if (!topics || !Array.isArray(topics)) {
+      console.error('获取到的热点话题数据不是数组:', topics);
+      return NextResponse.json(
+        { 
+          error: '获取热点话题数据格式错误',
+          topics: [],
+          success: false
+        },
+        { status: 500 }
+      );
+    }
     
-    if (topics.length === 0) {
+    logInfo('热点话题原始数据', { 
+      count: Array.isArray(topics) ? topics.length : 0, 
+      sample: Array.isArray(topics) && topics.length > 0 ? topics.slice(0, 2) : [] 
+    });
+    
+    if (!Array.isArray(topics) || topics.length === 0) {
       logInfo('从Supabase获取的热点话题为空', { requestId });
     }
     
     // 将旧版数据结构转换为新版数据结构
-    const formattedTopics = topics.map(topic => {
+    const formattedTopics = Array.isArray(topics) ? topics.map(topic => {
+      if (!topic) {
+        return {
+          id: uuidv4(),
+          keyword: '未知话题',
+          volume: 0,
+          source: '',
+          date: new Date().toISOString().split('T')[0],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          related_articles: []
+        };
+      }
+      
       // 处理旧版API可能的字段名不一致问题
       const oldTopic = topic as any; // 使用any类型断言处理旧版数据结构
       
@@ -64,14 +94,14 @@ export async function GET(request: NextRequest) {
       }
       
       const formattedTopic = {
-        id: topic.id,
-        keyword: topic.keyword || oldTopic.title || '', // 支持旧版title字段
+        id: topic.id || uuidv4(),
+        keyword: topic.keyword || oldTopic.title || '未知话题', // 支持旧版title字段
         volume: volume, // 确保为数字类型
         source: topic.source || '',
         date: topic.created_at ? new Date(topic.created_at).toISOString().split('T')[0] : '',
         created_at: topic.created_at || new Date().toISOString(),
         updated_at: topic.updated_at || new Date().toISOString(),
-        related_articles: topic.related_articles || []
+        related_articles: Array.isArray(topic.related_articles) ? topic.related_articles : []
       };
       
       // 如果volume为NaN或undefined，设为0
@@ -81,12 +111,12 @@ export async function GET(request: NextRequest) {
       }
       
       return formattedTopic;
-    });
+    }) : [];
     
     logInfo('热点话题获取成功', { 
       requestId, 
       count: formattedTopics.length,
-      sample: formattedTopics.slice(0, 2)
+      sample: Array.isArray(formattedTopics) && formattedTopics.length > 0 ? formattedTopics.slice(0, 2) : []
     });
     
     // 设置响应头，指定字符编码为UTF-8

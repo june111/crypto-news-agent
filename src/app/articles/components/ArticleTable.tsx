@@ -46,24 +46,31 @@ const getStatusColor = (status: ArticleStatus) => {
 };
 
 // 渲染关键词标签
-const renderKeywordTags = (keywords: string[]) => (
-  <div className={styles.keywordTagContainer}>
-    {keywords.slice(0, 3).map((keyword: string, index: number) => (
-      <span key={index} className={styles.keywordTag}>
-        {keyword}
-      </span>
-    ))}
-    {keywords.length > 3 && (
-      <span style={{ 
-        color: '#8c8c8c',
-        fontSize: '12px',
-        padding: '2px 4px'
-      }}>
-        +{keywords.length - 3}
-      </span>
-    )}
-  </div>
-);
+const renderKeywordTags = (keywords: string[]) => {
+  // 确保keywords是有效的数组
+  if (!keywords || !Array.isArray(keywords)) {
+    return <div className={styles.keywordTagContainer}></div>;
+  }
+  
+  return (
+    <div className={styles.keywordTagContainer}>
+      {keywords.length > 0 && keywords.slice(0, 3).map((keyword: string, index: number) => (
+        <span key={index} className={styles.keywordTag}>
+          {keyword}
+        </span>
+      ))}
+      {keywords.length > 3 && (
+        <span style={{ 
+          color: '#8c8c8c',
+          fontSize: '12px',
+          padding: '2px 4px'
+        }}>
+          +{keywords.length - 3}
+        </span>
+      )}
+    </div>
+  );
+};
 
 interface ArticleTableProps {
   articles: Article[];
@@ -310,9 +317,9 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
         </div>
       ) : (
         <Table
-          dataSource={articles}
+          dataSource={Array.isArray(articles) ? articles : []}
           columns={columns}
-          rowKey="id"
+          rowKey={record => record?.id || `article-${Math.random().toString(36).slice(2)}`}
           pagination={{
             defaultPageSize: 10,
             showSizeChanger: true,
@@ -327,12 +334,12 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
                   <span>
-                    {articles.length === 0 ? '暂无文章，请创建新文章' : '没有找到匹配的文章'}
+                    {Array.isArray(articles) && articles.length === 0 ? '暂无文章，请创建新文章' : '没有找到匹配的文章'}
                   </span>
                 }
                 className={styles.tableEmpty}
               >
-                {articles.length === 0 && (
+                {Array.isArray(articles) && articles.length === 0 && (
                   <Button 
                     type="primary" 
                     icon={<PlusOutlined />} 

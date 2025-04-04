@@ -171,14 +171,34 @@ const TemplatesPage = () => {
   };
   
   // 过滤数据 - 同时匹配名称和分类
-  const filteredTemplates = templates.filter((template: Template) => {
-    const nameMatch = template.name.toLowerCase().includes(searchName.toLowerCase());
-    const categoryMatch = !searchCategory || template.category === searchCategory;
-    return nameMatch && categoryMatch;
-  });
+  const filteredTemplates = useMemo(() => {
+    if (!Array.isArray(templates)) {
+      console.error('templates 不是有效数组:', templates);
+      return [];
+    }
+    
+    return templates.filter((template: Template) => {
+      // 防止访问undefined属性
+      const name = template?.name || '';
+      const category = template?.category || '';
+      
+      const nameMatch = name.toLowerCase().includes((searchName || '').toLowerCase());
+      const categoryMatch = !searchCategory || category === searchCategory;
+      return nameMatch && categoryMatch;
+    });
+  }, [templates, searchName, searchCategory]);
   
   // 按使用次数排序 (降序)
-  const sortedTemplates = [...filteredTemplates].sort((a, b) => b.usage_count - a.usage_count);
+  const sortedTemplates = useMemo(() => {
+    if (!Array.isArray(filteredTemplates)) {
+      return [];
+    }
+    return [...filteredTemplates].sort((a, b) => {
+      const usageA = typeof a?.usage_count === 'number' ? a.usage_count : 0;
+      const usageB = typeof b?.usage_count === 'number' ? b.usage_count : 0;
+      return usageB - usageA;
+    });
+  }, [filteredTemplates]);
   
   // 获取分类对应的颜色
   const getCategoryColor = (category: string) => {
@@ -235,7 +255,7 @@ const TemplatesPage = () => {
                 title="确认删除"
                 description={`确定要删除模板"${template.name}"吗？此操作无法撤销。`}
                 onConfirm={(e) => {
-                  e.stopPropagation(); // 阻止事件冒泡
+                  e?.stopPropagation(); // 阻止事件冒泡
                   handleDeleteTemplate(template.id, template.name);
                 }}
                 okText="确认删除"
@@ -315,7 +335,7 @@ const TemplatesPage = () => {
         {!loading && (
           <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
             <Col xs={24} sm={8}>
-              <Card variant="borderless" className={styles.statCard}>
+              <Card className={styles.statCard}>
                 <Statistic 
                   title="模板总数" 
                   value={statistics.totalTemplates} 
@@ -326,7 +346,7 @@ const TemplatesPage = () => {
             </Col>
             
             <Col xs={24} sm={8}>
-              <Card variant="borderless" className={styles.statCard}>
+              <Card className={styles.statCard}>
                 <Statistic 
                   title="分类数量" 
                   value={statistics.categoriesCount} 
@@ -337,7 +357,7 @@ const TemplatesPage = () => {
             </Col>
             
             <Col xs={24} sm={8}>
-              <Card variant="borderless" className={styles.statCard}>
+              <Card className={styles.statCard}>
                 <Statistic 
                   title="总使用次数" 
                   value={statistics.totalUsage} 
@@ -351,7 +371,6 @@ const TemplatesPage = () => {
         
         {/* 搜索条件区域 */}
         <Card 
-          variant="borderless"
           className={styles.searchBox}
         >
           <Form layout="vertical" className={styles.searchForm}>
@@ -380,13 +399,17 @@ const TemplatesPage = () => {
                     showSearch
                     optionFilterProp="children"
                   >
-                    {uniqueCategories.map((category: string) => (
-                      <Option key={category} value={category}>
-                        <Tag color={getCategoryColor(category)}>
-                          {category}
-                        </Tag>
-                      </Option>
-                    ))}
+                    {Array.isArray(uniqueCategories) && uniqueCategories.length > 0 ? (
+                      uniqueCategories.map((category: string) => (
+                        <Option key={category} value={category}>
+                          <Tag color={getCategoryColor(category)}>
+                            {category}
+                          </Tag>
+                        </Option>
+                      ))
+                    ) : (
+                      <Option value="" disabled>无可用分类</Option>
+                    )}
                   </Select>
                 </Form.Item>
               </Col>
@@ -407,7 +430,7 @@ const TemplatesPage = () => {
         </Card>
         
         {/* 过滤结果提示 */}
-        {!loading && sortedTemplates.length > 0 && (
+        {!loading && Array.isArray(sortedTemplates) && sortedTemplates.length > 0 && (
           <div className={styles.filterResultInfo}>
             <Text>
               共找到 <Text strong>{sortedTemplates.length}</Text> 个符合条件的模板
@@ -420,7 +443,7 @@ const TemplatesPage = () => {
         {/* 模板卡片网格 */}
         {loading ? (
           <Row gutter={[16, 16]}>
-            {Array.from({ length: 8 }).map((_, index) => (
+            {[...Array(8)].map((_, index) => (
               <Col xs={24} sm={12} md={8} lg={6} key={`skeleton-${index}`}>
                 <Card className={styles.skeletonCard}>
                   <Skeleton active avatar paragraph={{ rows: 3 }} />
@@ -428,10 +451,10 @@ const TemplatesPage = () => {
               </Col>
             ))}
           </Row>
-        ) : sortedTemplates.length > 0 ? (
+        ) : Array.isArray(sortedTemplates) && sortedTemplates.length > 0 ? (
           <Row gutter={[16, 16]}>
             {sortedTemplates.map((template: Template) => (
-              <Col xs={24} sm={12} md={8} lg={6} key={template.id} style={{ marginBottom: '8px' }}>
+              <Col xs={24} sm={12} md={8} lg={6} key={template.id || `template-${Math.random()}`} style={{ marginBottom: '8px' }}>
                 {renderTemplateCard(template)}
               </Col>
             ))}

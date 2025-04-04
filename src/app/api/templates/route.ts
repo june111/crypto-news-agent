@@ -37,6 +37,21 @@ export async function GET(request: NextRequest) {
       sortOrder: 'asc'
     });
     
+    // 确保result.templates是有效的数组
+    if (!result || !result.templates || !Array.isArray(result.templates)) {
+      logError('获取到的模板数据格式不正确:', result);
+      return NextResponse.json({
+        templates: [],
+        count: 0,
+        total: 0,
+        page: page,
+        pageSize: pageSize,
+        totalPages: 0,
+        message: "获取文章模板数据格式异常",
+        success: false
+      }, { status: 500 });
+    }
+    
     // 确保模板数据格式一致
     const formattedTemplates = result.templates.map(template => {
       // 使用类型断言确保类型安全
@@ -93,6 +108,14 @@ export async function GET(request: NextRequest) {
 // POST: 创建新模板
 export async function POST(request: NextRequest) {
   try {
+    // 获取请求ID用于追踪和连接复用
+    const requestId = request.headers.get('x-request-id') || 
+                     request.headers.get('x-db-request-id') ||
+                     `api-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                     
+    // 确保数据库初始化
+    await initDatabaseOnce(requestId);
+                     
     // 获取请求体
     const body = await request.json();
     const { name, content, description, category } = body;
@@ -105,21 +128,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    logInfo('创建新模板', { requestId, templateName: name });
+
     // 创建新模板，符合接口类型限制
     const template = await repositories.templates.createTemplate({
       name,
       content,
-      description,
-      category
-      // 移除不符合类型定义的变量
-      // variables
+      description: description || '',
+      category: category || '未分类'
     });
 
+    if (!template) {
+      return NextResponse.json(
+        { error: '创建模板失败，服务器内部错误' },
+        { status: 500 }
+      );
+    }
+
+    logInfo('模板创建成功', { requestId, templateId: template.id });
+    
     return NextResponse.json(template, { status: 201 });
   } catch (error) {
-    console.error('创建模板失败:', error);
+    logError('创建模板失败:', { error });
     return NextResponse.json(
-      { error: '创建模板失败' },
+      { 
+        error: '创建模板失败',
+        message: error instanceof Error ? error.message : '未知错误',
+        success: false
+      },
       { status: 500 }
     );
   }

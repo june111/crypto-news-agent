@@ -211,22 +211,22 @@ const HotTopicsPage: React.FC = () => {
         } 
         // 可能是其他包含数组的对象格式
         else {
-          const possibleArrayProps = Object.values(data).filter(val => Array.isArray(val));
+          const possibleArrayProps = Object.values(data).filter(val => Array.isArray(val) && val !== null);
           console.log('找到的数组属性数量:', possibleArrayProps.length);
           
           if (possibleArrayProps.length > 0) {
             // 使用找到的第一个数组
             topicsData = possibleArrayProps[0] as any[];
             console.log('使用第一个数组属性，长度:', topicsData.length);
-          } else if (data && 'data' in data && Array.isArray((data as any).data)) {
+          } else if (data && 'data' in data && (data as any).data && Array.isArray((data as any).data)) {
             // 检查是否有data属性
             console.log('使用data属性数组');
             topicsData = (data as any).data;
-          } else if (data && 'items' in data && Array.isArray((data as any).items)) {
+          } else if (data && 'items' in data && (data as any).items && Array.isArray((data as any).items)) {
             // 检查是否有items属性
             console.log('使用items属性数组');
             topicsData = (data as any).items;
-          } else if (data && 'results' in data && Array.isArray((data as any).results)) {
+          } else if (data && 'results' in data && (data as any).results && Array.isArray((data as any).results)) {
             // 检查是否有results属性
             console.log('使用results属性数组');
             topicsData = (data as any).results;
@@ -240,20 +240,34 @@ const HotTopicsPage: React.FC = () => {
       
       console.log('解析后的topicsData:', topicsData);
       
-      if (topicsData && topicsData.length > 0) {
+      if (topicsData && Array.isArray(topicsData) && topicsData.length > 0) {
         console.log('开始格式化数据，样本第一项:', topicsData[0]);
         
         const formattedTopics: DisplayHotTopic[] = topicsData.map((item, index) => {
+          if (!item) {
+            console.warn(`第${index+1}项是undefined或null，跳过格式化`);
+            return {
+              id: `invalid-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+              keyword: '未知关键词',
+              volume: 0,
+              date: new Date().toISOString().split('T')[0],
+              source: '未知来源',
+              status: 'active'
+            };
+          }
+          
           console.log(`格式化第${index+1}项:`, item);
           
           const formattedItem = {
             id: item.id || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-            keyword: item.keyword || item.title || '',
-            volume: typeof item.volume !== 'undefined' ? Number(item.volume) : (item.score ? Number(item.score) : 0),
+            keyword: item.keyword || item.title || '未知关键词',
+            volume: typeof item.volume !== 'undefined' ? Number(item.volume) : 
+                   (typeof item.score !== 'undefined' ? Number(item.score) : 0),
             date: item.date || (item.created_at ? new Date(item.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
             source: item.source || '未知来源',
             // 前端计算status，仅用于UI显示
-            status: (Number(item.volume) >= TRENDING_THRESHOLD || Number(item.score) >= TRENDING_THRESHOLD) ? 'trending' : 'active'
+            status: (Number(item.volume) >= TRENDING_THRESHOLD || 
+                     (typeof item.score !== 'undefined' && Number(item.score) >= TRENDING_THRESHOLD)) ? 'trending' : 'active'
           };
           
           console.log(`第${index+1}项格式化结果:`, formattedItem);
@@ -501,6 +515,9 @@ const HotTopicsPage: React.FC = () => {
   
   // 获取当前所有来源的唯一值，用于筛选下拉框
   const sourceFilterOptions = useMemo(() => {
+    if (!Array.isArray(topics) || topics.length === 0) {
+      return [];
+    }
     const uniqueSources = Array.from(new Set(topics.map(topic => topic.source)));
     return uniqueSources
       .filter(source => !!source)
@@ -517,7 +534,14 @@ const HotTopicsPage: React.FC = () => {
   
   // 统计数据 - 使用常量判断热门话题
   const statistics = useMemo(() => {
-    if (topics.length === 0) return { todayTotal: 0, todayTrending: 0, todayMaxVolume: 0 };
+    if (!Array.isArray(topics) || topics.length === 0) {
+      return { 
+        todayTotal: 0, 
+        todayTrending: 0, 
+        todayMaxVolume: 0,
+        trendingThreshold: TRENDING_THRESHOLD
+      };
+    }
     
     const today = new Date().toISOString().split('T')[0];
     const todayTopics = topics.filter(t => t.date === today);

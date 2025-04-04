@@ -152,11 +152,15 @@ const ArticleFilters: React.FC<ArticleFiltersProps> = ({
                 style={{ width: '100%' }}
                 allowClear
               >
-                {categories.map((category) => (
-                  <Option key={category} value={category}>
-                    <Tag color="blue">{category}</Tag>
-                  </Option>
-                ))}
+                {Array.isArray(categories) && categories.length > 0 ? (
+                  categories.map((category) => (
+                    <Option key={category} value={category}>
+                      <Tag color="blue">{category}</Tag>
+                    </Option>
+                  ))
+                ) : (
+                  <Option value="" disabled>无可用分类</Option>
+                )}
               </Select>
             </Form.Item>
           </Col>
@@ -184,13 +188,17 @@ const ArticleFilters: React.FC<ArticleFiltersProps> = ({
                 style={{ width: '100%' }}
                 allowClear
               >
-                {STATUS_OPTIONS.map((status) => (
-                  <Option key={status} value={status}>
-                    <Tag color={getStatusColor(status)} style={{ minWidth: '60px', textAlign: 'center' }}>
-                      {status}
-                    </Tag>
-                  </Option>
-                ))}
+                {Array.isArray(STATUS_OPTIONS) && STATUS_OPTIONS.length > 0 ? (
+                  STATUS_OPTIONS.map((status) => (
+                    <Option key={status} value={status}>
+                      <Tag color={getStatusColor(status)} style={{ minWidth: '60px', textAlign: 'center' }}>
+                        {status}
+                      </Tag>
+                    </Option>
+                  ))
+                ) : (
+                  <Option value="" disabled>无可用状态</Option>
+                )}
               </Select>
             </Form.Item>
           </Col>

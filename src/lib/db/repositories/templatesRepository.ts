@@ -52,12 +52,16 @@ export async function getAllTemplates({
       throw error;
     }
     
+    // 确保返回安全的数据结构
+    const templates = Array.isArray(data) ? data : [];
+    const totalCount = count !== null && count !== undefined ? count : 0;
+    
     return {
-      templates: data || [],
-      total: count || 0,
+      templates,
+      total: totalCount,
       page,
       pageSize,
-      totalPages: count ? Math.ceil(count / pageSize) : 0
+      totalPages: totalCount ? Math.ceil(totalCount / pageSize) : 0
     };
   } catch (error) {
     console.error('获取模板列表失败:', error);

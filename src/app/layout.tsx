@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import './globals.css';
+import type { Metadata } from 'next';
 import { ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
+import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: "加密货币新闻管理系统",
@@ -11,57 +12,31 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="zh-CN">
       <head>
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-        />
-        <style dangerouslySetInnerHTML={{ __html: `
-          /* 备用字体加载 */
-          @font-face {
-            font-family: 'Inter';
-            font-style: normal;
-            font-weight: 400;
-            font-display: swap;
-            src: local('Inter Regular'), local('Inter-Regular'), local('sans-serif');
-          }
-          @font-face {
-            font-family: 'Inter';
-            font-style: normal;
-            font-weight: 500;
-            font-display: swap;
-            src: local('Inter Medium'), local('Inter-Medium'), local('sans-serif-medium');
-          }
-          @font-face {
-            font-family: 'Inter';
-            font-style: normal;
-            font-weight: 600;
-            font-display: swap;
-            src: local('Inter SemiBold'), local('Inter-SemiBold'), local('sans-serif-semibold');
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light" />
+        <style dangerouslySetInnerHTML={{__html: `
+          :root {
+            --font-family: 'Inter', system-ui, sans-serif;
           }
         `}} />
+        {/* 运行时配置脚本 */}
+        <Script src="/config.js" strategy="beforeInteractive" />
       </head>
       <body className="font-inter">
         <ConfigProvider
           locale={zhCN}
           theme={{
             token: {
-              colorPrimary: "#1890ff",
-              borderRadius: 4,
-              fontSize: 14,
-            },
-            components: {
-              Menu: {
-                itemBg: "transparent",
-              },
-              Layout: {
-                bodyBg: "#f0f2f5",
-              },
-            },
+              colorPrimary: '#065E7C',
+              colorLink: '#065E7C',
+              colorLinkHover: '#03456B',
+              borderRadius: 4
+            }
           }}
         >
           {children}

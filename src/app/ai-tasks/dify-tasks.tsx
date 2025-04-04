@@ -233,40 +233,44 @@ const DifyTasksComponent: React.FC = () => {
       dataIndex: ['workflow_run', 'status'],
       key: 'status',
       width: 100,
-      render: (status) => getStatusBadge(status),
+      render: (status, record) => {
+        return record.workflow_run?.status ? getStatusBadge(record.workflow_run.status) : getStatusBadge('');
+      },
     },
     {
       title: '创建时间',
       dataIndex: ['workflow_run', 'created_at'],
       key: 'created_at',
       width: 180,
-      render: (timestamp) => formatTimestamp(timestamp),
+      render: (timestamp, record) => record.workflow_run?.created_at ? formatTimestamp(record.workflow_run.created_at) : '-',
     },
     {
       title: '完成时间',
       dataIndex: ['workflow_run', 'finished_at'],
       key: 'finished_at',
       width: 180,
-      render: (timestamp) => timestamp ? formatTimestamp(timestamp) : '-',
+      render: (timestamp, record) => record.workflow_run?.finished_at ? formatTimestamp(record.workflow_run.finished_at) : '-',
     },
     {
       title: '耗时(秒)',
       dataIndex: ['workflow_run', 'elapsed_time'],
       key: 'elapsed_time',
       width: 100,
-      render: (time) => time ? time.toFixed(2) : '-',
+      render: (time, record) => record.workflow_run?.elapsed_time ? record.workflow_run.elapsed_time.toFixed(2) : '-',
     },
     {
       title: '令牌数',
       dataIndex: ['workflow_run', 'total_tokens'],
       key: 'total_tokens',
       width: 100,
+      render: (tokens, record) => record.workflow_run?.total_tokens || 0,
     },
     {
       title: '步骤数',
       dataIndex: ['workflow_run', 'total_steps'],
       key: 'total_steps',
       width: 100,
+      render: (steps, record) => record.workflow_run?.total_steps || 0,
     },
     {
       title: '操作',
@@ -304,25 +308,25 @@ const DifyTasksComponent: React.FC = () => {
         <Card>
           <Descriptions title="基本信息" bordered>
             <Descriptions.Item label="工作流ID" span={3}>
-              {currentTask.workflow_run.id}
+              {currentTask.workflow_run?.id || '无'}
             </Descriptions.Item>
             <Descriptions.Item label="版本">
-              {currentTask.workflow_run.version}
+              {currentTask.workflow_run?.version || '无'}
             </Descriptions.Item>
             <Descriptions.Item label="状态">
-              {getStatusBadge(currentTask.workflow_run.status)}
+              {currentTask.workflow_run?.status ? getStatusBadge(currentTask.workflow_run.status) : '未知'}
             </Descriptions.Item>
             <Descriptions.Item label="异常数">
-              {currentTask.workflow_run.exceptions_count || 0}
+              {currentTask.workflow_run?.exceptions_count || 0}
             </Descriptions.Item>
             <Descriptions.Item label="耗时(秒)">
-              {currentTask.workflow_run.elapsed_time.toFixed(2)}
+              {currentTask.workflow_run?.elapsed_time ? currentTask.workflow_run.elapsed_time.toFixed(2) : '0.00'}
             </Descriptions.Item>
             <Descriptions.Item label="令牌数">
-              {currentTask.workflow_run.total_tokens}
+              {currentTask.workflow_run?.total_tokens || 0}
             </Descriptions.Item>
             <Descriptions.Item label="步骤数">
-              {currentTask.workflow_run.total_steps || 0}
+              {currentTask.workflow_run?.total_steps || 0}
             </Descriptions.Item>
           </Descriptions>
 
@@ -339,7 +343,8 @@ const DifyTasksComponent: React.FC = () => {
               {currentTask.created_by_end_user?.session_id || '无'}
             </Descriptions.Item>
             <Descriptions.Item label="匿名用户">
-              {currentTask.created_by_end_user?.is_anonymous ? '是' : '否'}
+              {currentTask.created_by_end_user?.is_anonymous !== undefined ? 
+                (currentTask.created_by_end_user.is_anonymous ? '是' : '否') : '未知'}
             </Descriptions.Item>
             <Descriptions.Item label="创建来源">
               {currentTask.created_from || '无'}
@@ -353,14 +358,14 @@ const DifyTasksComponent: React.FC = () => {
 
           <Descriptions title="时间信息" bordered>
             <Descriptions.Item label="创建时间">
-              {formatTimestamp(currentTask.workflow_run.created_at)}
+              {currentTask.workflow_run?.created_at ? formatTimestamp(currentTask.workflow_run.created_at) : '无'}
             </Descriptions.Item>
             <Descriptions.Item label="完成时间">
-              {currentTask.workflow_run.finished_at ? formatTimestamp(currentTask.workflow_run.finished_at) : '-'}
+              {currentTask.workflow_run?.finished_at ? formatTimestamp(currentTask.workflow_run.finished_at) : '-'}
             </Descriptions.Item>
           </Descriptions>
 
-          {currentTask.workflow_run.error && (
+          {currentTask.workflow_run?.error && (
             <>
               <Divider />
               <Card title="错误信息" type="inner" style={{ marginTop: 16 }}>
@@ -450,12 +455,12 @@ const DifyTasksComponent: React.FC = () => {
 
             <Table
               columns={columns}
-              dataSource={tasks}
+              dataSource={Array.isArray(tasks) ? tasks : []}
               rowKey={record => {
                 // 确保所有记录都有唯一id
                 if (!record || !record.id) {
                   console.warn('记录缺少id:', record);
-                  return Math.random().toString(36).substring(2, 9);
+                  return `temp-${Math.random().toString(36).substring(2, 9)}`;
                 }
                 return record.id;
               }}

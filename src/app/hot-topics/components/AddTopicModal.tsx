@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Modal, 
   Input, 
@@ -116,6 +116,13 @@ const AddTopicModal: React.FC<AddTopicModalProps> = ({
     }
   };
   
+  // 清理副作用 - 组件关闭时重置表单
+  useEffect(() => {
+    if (!visible) {
+      form.resetFields();
+    }
+  }, [visible, form]);
+  
   return (
     <Modal
       title="添加热点话题"
@@ -146,6 +153,11 @@ const AddTopicModal: React.FC<AddTopicModalProps> = ({
         form={form}
         layout="vertical"
         requiredMark="optional"
+        initialValues={{
+          keyword: keyword,
+          volume: volume || undefined,
+          source: source || undefined
+        }}
       >
         <Form.Item 
           label={

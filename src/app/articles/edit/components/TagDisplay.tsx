@@ -7,8 +7,8 @@ import styles from '../../articles.module.css';
 
 interface TagDisplayProps {
   tags: string[];
-  onAdd: (tag: string) => void;
-  onRemove: (tag: string) => void;
+  onAdd?: (tag: string) => void;
+  onRemove?: (tag: string) => void;
   disabled?: boolean;
 }
 

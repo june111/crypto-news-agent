@@ -149,9 +149,9 @@ export async function POST(request: NextRequest) {
         const images = await repositories.images.getImagesByUrl(body.cover_image);
         
         // 如果找到相关图片，更新它们的article_id
-        if (images && images.length > 0) {
+        if (images && Array.isArray(images) && images.length > 0) {
           for (const image of images) {
-            if (!image.article_id) {
+            if (image && image.id && !image.article_id) {
               logInfo('更新图片关联的文章ID', { 
                 requestId, 
                 imageId: image.id, 
@@ -160,6 +160,11 @@ export async function POST(request: NextRequest) {
               await repositories.images.updateImageArticleId(image.id, article.id);
             }
           }
+        } else {
+          logInfo('未找到与封面图相关的图片记录', { 
+            requestId, 
+            coverImage: body.cover_image
+          });
         }
       } catch (imgError) {
         // 捕获图片处理错误，但不影响文章创建的成功响应
@@ -169,6 +174,8 @@ export async function POST(request: NextRequest) {
           coverImage: body.cover_image 
         });
       }
+    } else if (article && article.id) {
+      logInfo('文章创建成功，但没有提供封面图', { requestId, articleId: article.id });
     }
     
     return NextResponse.json(article);

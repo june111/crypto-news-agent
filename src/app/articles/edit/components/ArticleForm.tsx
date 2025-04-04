@@ -249,32 +249,39 @@ export default function ArticleForm({
         console.log('热点话题API响应数据:', responseData);
         
         if (responseData && responseData.topics && Array.isArray(responseData.topics)) {
-          console.log('成功获取热点话题:', responseData.topics.length);
-          const formattedTopics = responseData.topics.map((t: any) => ({
-            id: t.id,
-            keyword: t.keyword || t.title || '未命名话题',
-            volume: t.volume || t.popularity || t.score || 0,
-            trend: t.trend || (t.change_rate > 0 ? 'up' : t.change_rate < 0 ? 'down' : 'stable'),
-            created_at: t.created_at || new Date().toISOString()
-          }));
-          setHotTopics(formattedTopics);
-          console.log('已设置热点话题数据:', formattedTopics);
+          const topicsLength = responseData.topics.length;
+          console.log('成功获取热点话题:', topicsLength);
           
-          // 保存到本地缓存
-          try {
-            // 限制数据大小，最多缓存100条热点话题
-            const limitedTopics = formattedTopics.slice(0, 100);
+          if (topicsLength > 0) {
+            const formattedTopics = responseData.topics.map((t: any) => ({
+              id: t.id,
+              keyword: t.keyword || t.title || '未命名话题',
+              volume: t.volume || t.popularity || t.score || 0,
+              trend: t.trend || (t.change_rate > 0 ? 'up' : t.change_rate < 0 ? 'down' : 'stable'),
+              created_at: t.created_at || new Date().toISOString()
+            }));
+            setHotTopics(formattedTopics);
+            console.log('已设置热点话题数据:', formattedTopics);
             
-            // 估算数据大小，如果超过1MB则不缓存
-            const dataString = JSON.stringify(limitedTopics);
-            if (dataString.length > 1024 * 1024) {
-              console.warn('热点话题数据过大，跳过本地缓存');
-            } else {
-              safeLocalStorage.setItem('hotTopicsCache', dataString);
-              safeLocalStorage.setItem('hotTopicsCacheTime', Date.now().toString());
+            // 保存到本地缓存
+            try {
+              // 限制数据大小，最多缓存100条热点话题
+              const limitedTopics = formattedTopics.slice(0, 100);
+              
+              // 估算数据大小，如果超过1MB则不缓存
+              const dataString = JSON.stringify(limitedTopics);
+              if (dataString.length > 1024 * 1024) {
+                console.warn('热点话题数据过大，跳过本地缓存');
+              } else {
+                safeLocalStorage.setItem('hotTopicsCache', dataString);
+                safeLocalStorage.setItem('hotTopicsCacheTime', Date.now().toString());
+              }
+            } catch (e) {
+              console.warn('缓存热点话题数据失败:', e);
             }
-          } catch (e) {
-            console.warn('缓存热点话题数据失败:', e);
+          } else {
+            console.log('热点话题数据为空数组');
+            setHotTopics([]);
           }
         } else {
           console.warn('热点话题数据格式不符合预期:', responseData);
@@ -408,10 +415,12 @@ export default function ArticleForm({
       const formData = getFormData();
       
       // 调用发布函数
-      await onPublish({
-        ...formData,
-        status: 'published' as const
-      });
+      if (onPublish) {
+        await onPublish({
+          ...formData,
+          status: 'published' as const
+        });
+      }
     } catch (error) {
       console.error('发布文章错误:', error);
     } finally {
@@ -433,7 +442,9 @@ export default function ArticleForm({
       const formData = getFormData();
       
       // 调用提交审核函数
-      await onSubmitForReview(formData);
+      if (onSubmitForReview) {
+        await onSubmitForReview(formData);
+      }
     } catch (error) {
       console.error('提交审核错误:', error);
     } finally {
@@ -670,7 +681,7 @@ export default function ArticleForm({
                 }
                 optionLabelProp="label"
               >
-                {hotTopics.map(topic => (
+                {Array.isArray(hotTopics) && hotTopics.length > 0 ? hotTopics.map(topic => (
                   <Option 
                     key={topic.id} 
                     value={topic.id}
@@ -686,9 +697,11 @@ export default function ArticleForm({
                       </span>
                     </div>
                   </Option>
-                ))}
+                )) : (
+                  <Option disabled value="no-data">暂无热点话题数据</Option>
+                )}
               </Select>
-              {hotTopics.length === 0 && !loadingHotTopics && (
+              {Array.isArray(hotTopics) && hotTopics.length === 0 && !loadingHotTopics && (
                 <div style={{marginTop: 8, color: '#ff4d4f'}}>
                   未找到任何热点话题，请确认API是否正常工作
                 </div>
@@ -714,7 +727,7 @@ export default function ArticleForm({
                 }
                 optionLabelProp="label"
               >
-                {templates.map(template => (
+                {Array.isArray(templates) && templates.length > 0 ? templates.map(template => (
                   <Option 
                     key={template.id} 
                     value={template.id}
@@ -748,9 +761,11 @@ export default function ArticleForm({
                       )}
                     </div>
                   </Option>
-                ))}
+                )) : (
+                  <Option disabled value="no-data">暂无模板数据</Option>
+                )}
               </Select>
-              {templates.length === 0 && !loadingTemplates && (
+              {Array.isArray(templates) && templates.length === 0 && !loadingTemplates && (
                 <div style={{marginTop: 8, color: '#ff4d4f'}}>
                   未找到任何模板，请确认API是否正常工作
                 </div>

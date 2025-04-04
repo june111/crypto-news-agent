@@ -140,10 +140,13 @@ async function apiClient<T = any>(
  * GET请求
  */
 export function get<T = any>(endpoint: string, options: ApiClientOptions = {}): Promise<ApiResponse<T>> {
+  // 安全地获取requestId
+  const requestId = options.requestId || generateRequestId();
+  
   return apiClient<T>(endpoint, { 
     ...options, 
     method: 'GET',
-    requestId: options.requestId || headers.get('x-request-id')
+    requestId
   });
 }
 
@@ -151,11 +154,14 @@ export function get<T = any>(endpoint: string, options: ApiClientOptions = {}): 
  * POST请求
  */
 export function post<T = any>(endpoint: string, data: any, options: ApiClientOptions = {}): Promise<ApiResponse<T>> {
+  // 安全地获取requestId
+  const requestId = options.requestId || generateRequestId();
+  
   return apiClient<T>(endpoint, { 
     ...options, 
     method: 'POST',
     body: JSON.stringify(data),
-    requestId: options.requestId || headers.get('x-request-id')
+    requestId
   });
 }
 
@@ -163,11 +169,14 @@ export function post<T = any>(endpoint: string, data: any, options: ApiClientOpt
  * PUT请求
  */
 export function put<T = any>(endpoint: string, data: any, options: ApiClientOptions = {}): Promise<ApiResponse<T>> {
+  // 安全地获取requestId
+  const requestId = options.requestId || generateRequestId();
+  
   return apiClient<T>(endpoint, { 
     ...options, 
     method: 'PUT',
     body: JSON.stringify(data),
-    requestId: options.requestId || headers.get('x-request-id')
+    requestId
   });
 }
 
@@ -175,10 +184,13 @@ export function put<T = any>(endpoint: string, data: any, options: ApiClientOpti
  * DELETE请求
  */
 export function del<T = any>(endpoint: string, options: ApiClientOptions = {}): Promise<ApiResponse<T>> {
+  // 安全地获取requestId
+  const requestId = options.requestId || generateRequestId();
+  
   return apiClient<T>(endpoint, { 
     ...options, 
     method: 'DELETE',
-    requestId: options.requestId || headers.get('x-request-id')
+    requestId
   });
 }
 

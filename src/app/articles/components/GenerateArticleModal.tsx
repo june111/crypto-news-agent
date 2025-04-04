@@ -98,15 +98,16 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
   
   // 添加关键词
   const handleAddKeyword = (inputValue: string) => {
+    const newId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; 
     const newKeyword = {
-      id: (hotTopics.length + 1).toString(),
+      id: newId,
       keyword: inputValue,
       popularity: Math.floor(Math.random() * 40) + 10, // 10-50的随机热度
       date: new Date().toISOString().split('T')[0]
     };
     
-    setHotTopics([...hotTopics, newKeyword]);
-    setSelectedKeywords([...selectedKeywords, inputValue]);
+    setHotTopics(prevTopics => [...prevTopics, newKeyword]);
+    setSelectedKeywords(prevKeywords => [...prevKeywords, inputValue]);
   };
   
   // 处理选择模板
@@ -242,21 +243,23 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
                 const inputElement = e.target as HTMLInputElement;
                 if (inputElement.value) {
                   const inputValue = inputElement.value.trim();
-                  if (inputValue && !hotTopics.some(topic => topic.keyword === inputValue)) {
+                  if (inputValue && Array.isArray(hotTopics) && !hotTopics.some(topic => topic.keyword === inputValue)) {
                     handleAddKeyword(inputValue);
                   }
                 }
               }
             }}
           >
-            {hotTopics.map(topic => (
+            {Array.isArray(hotTopics) && hotTopics.length > 0 ? hotTopics.map(topic => (
               <Option key={topic.keyword} value={topic.keyword}>
                 <div style={{ padding: '4px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text strong>{topic.keyword}</Text>
                   <Tag color="orange">热度: {topic.popularity}</Tag>
                 </div>
               </Option>
-            ))}
+            )) : (
+              <Option disabled value="no-data">暂无热点话题数据</Option>
+            )}
           </Select>
           <Text type="secondary" className={styles.modalHelp}>
             输入关键词后回车或逗号分隔，可添加多个关键词
@@ -277,7 +280,7 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
             optionLabelProp="label"
             listHeight={200}
           >
-            {templates.map(template => (
+            {Array.isArray(templates) && templates.length > 0 ? templates.map(template => (
               <Option 
                 key={template.id} 
                 value={template.id}
@@ -291,7 +294,9 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
                   {template.description}
                 </Text>
               </Option>
-            ))}
+            )) : (
+              <Option disabled value="no-data">暂无模板数据</Option>
+            )}
           </Select>
         </Form.Item>
 

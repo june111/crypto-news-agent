@@ -172,7 +172,7 @@ const ReviewArticleModal: React.FC<ReviewArticleModalProps> = ({
         styles={{ body: { maxHeight: '300px', overflow: 'auto' } }}
       >
         <div 
-          dangerouslySetInnerHTML={{ __html: article.content }} 
+          dangerouslySetInnerHTML={{ __html: article.content || '' }} 
           style={{ 
             padding: '10px',
             fontSize: '14px',
@@ -181,7 +181,7 @@ const ReviewArticleModal: React.FC<ReviewArticleModalProps> = ({
         />
       </Card>
       
-      {article.keywords && article.keywords.length > 0 && (
+      {Array.isArray(article.keywords) && article.keywords.length > 0 && (
         <div style={{ marginTop: 16 }}>
           <Text strong>关键词: </Text>
           {article.keywords.map((keyword, index) => (

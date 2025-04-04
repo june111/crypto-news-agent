@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseUrl, getSupabaseAnonKey } from './runtimeConfig';
 
-// 获取环境变量
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// 获取运行时配置的环境变量
+const supabaseUrl = getSupabaseUrl();
+const supabaseKey = getSupabaseAnonKey();
 
 // 判断是否使用模拟模式
 const useMockMode = process.env.MOCK_DB === 'true' || !supabaseUrl || !supabaseKey;

@@ -172,7 +172,6 @@ const safeLocalStorage = {
 export default function ArticlesPage() {
   const router = useRouter();
   const [messageApi, contextHolder] = message.useMessage();
-  const [form] = Form.useForm();
   
   // 核心状态 - 最小化状态数量
   const [articles, setArticles] = useState<Article[]>([]);
@@ -684,9 +683,15 @@ export default function ArticlesPage() {
         return false;
       }
       
-      if (filters.keyword && !(article.keywords && Array.isArray(article.keywords) && article.keywords.some(keyword => 
-        keyword.toLowerCase().includes(filters.keyword.toLowerCase())
-      ))) {
+      if (filters.keyword && !(
+        article.keywords && 
+        Array.isArray(article.keywords) && 
+        article.keywords.length > 0 && 
+        article.keywords.some(keyword => 
+          keyword && typeof keyword === 'string' && 
+          keyword.toLowerCase().includes(filters.keyword.toLowerCase())
+        )
+      )) {
         return false;
       }
       
@@ -694,7 +699,8 @@ export default function ArticlesPage() {
         return false;
       }
       
-      if (filters.content && !article.content.toLowerCase().includes(filters.content.toLowerCase())) {
+      if (filters.content && article.content && typeof article.content === 'string' && 
+          !article.content.toLowerCase().includes(filters.content.toLowerCase())) {
         return false;
       }
       
@@ -816,6 +822,16 @@ export default function ArticlesPage() {
       );
     }
     
+    if (!Array.isArray(filteredArticles)) {
+      console.error('filteredArticles 不是有效数组:', filteredArticles);
+      return (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="文章数据格式错误，请刷新页面重试"
+        />
+      );
+    }
+    
     if (filteredArticles.length === 0) {
       return (
         <Empty
@@ -848,13 +864,26 @@ export default function ArticlesPage() {
   
   // 获取统计信息
   const getStats = () => {
+    if (!articles || !Array.isArray(articles)) {
+      console.error('articles 不是有效数组，无法获取统计信息:', articles);
+      return {
+        total: 0,
+        publishedCount: 0,
+        pendingCount: 0,
+        rejectedCount: 0,
+        failedCount: 0,
+        unpublishedCount: 0,
+        draftCount: 0
+      };
+    }
+    
     const total = articles.length;
-    const publishedCount = articles.filter(article => article.status === '已发布').length;
-    const pendingCount = articles.filter(article => article.status === '待审核').length;
-    const rejectedCount = articles.filter(article => article.status === '不过审').length;
-    const failedCount = articles.filter(article => article.status === '发布失败').length;
-    const unpublishedCount = articles.filter(article => article.status === '已下架').length;
-    const draftCount = articles.filter(article => article.status === '草稿').length;
+    const publishedCount = articles.filter(article => article && article.status === '已发布').length;
+    const pendingCount = articles.filter(article => article && article.status === '待审核').length;
+    const rejectedCount = articles.filter(article => article && article.status === '不过审').length;
+    const failedCount = articles.filter(article => article && article.status === '发布失败').length;
+    const unpublishedCount = articles.filter(article => article && article.status === '已下架').length;
+    const draftCount = articles.filter(article => article && article.status === '草稿').length;
     
     return {
       total,

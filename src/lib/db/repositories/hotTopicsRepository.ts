@@ -146,7 +146,7 @@ export async function createHotTopic(hotTopic: HotTopic): Promise<HotTopic | nul
     }
     
     console.log('插入成功，返回数据:', JSON.stringify(data, null, 2));
-    return data && data.length > 0 ? data[0] as HotTopic : null;
+    return data && Array.isArray(data) && data.length > 0 ? data[0] as HotTopic : null;
   } catch (error) {
     console.error('创建热点话题异常:', error);
     console.error('异常类型:', error instanceof Error ? error.name : typeof error);
@@ -189,7 +189,12 @@ export async function getAllHotTopics(filter?: HotTopicFilter): Promise<HotTopic
       return [];
     }
     
-    console.log('成功获取热点话题数据，条数:', data.length);
+    if (!data || !Array.isArray(data)) {
+      console.error('获取到的hot_topics数据不是数组:', data);
+      return [];
+    }
+    
+    console.log('成功获取热点话题数据，条数:', Array.isArray(data) ? data.length : 0);
     
     // 手动在内存中过滤数据
     let filteredData = [...data];
@@ -198,19 +203,29 @@ export async function getAllHotTopics(filter?: HotTopicFilter): Promise<HotTopic
     if (filter) {
       if (filter.source) {
         filteredData = filteredData.filter(topic => 
-          topic.source && topic.source.toLowerCase().includes(filter.source!.toLowerCase())
+          topic && topic.source && typeof topic.source === 'string' && 
+          topic.source.toLowerCase().includes(filter.source!.toLowerCase())
         );
       }
       
       if (filter.minVolume !== undefined) {
-        filteredData = filteredData.filter(topic => (topic.volume || 0) >= filter.minVolume!);
+        const minVolumeValue = filter.minVolume!;
+        filteredData = filteredData.filter(topic => {
+          if (!topic) return false;
+          
+          return typeof topic.volume === 'number' ? 
+            topic.volume >= minVolumeValue : 
+            (typeof topic.volume === 'string' ? 
+              Number(topic.volume) >= minVolumeValue : 
+              0 >= minVolumeValue);
+        });
       }
       
       if (filter.dateRange) {
         if (filter.dateRange.start) {
           const startDate = new Date(filter.dateRange.start).getTime();
           filteredData = filteredData.filter(topic => {
-            if (!topic.created_at) return false;
+            if (!topic || !topic.created_at) return false;
             const topicDate = new Date(topic.created_at).getTime();
             return topicDate >= startDate;
           });
@@ -218,7 +233,7 @@ export async function getAllHotTopics(filter?: HotTopicFilter): Promise<HotTopic
         if (filter.dateRange.end) {
           const endDate = new Date(filter.dateRange.end).getTime();
           filteredData = filteredData.filter(topic => {
-            if (!topic.created_at) return false;
+            if (!topic || !topic.created_at) return false;
             const topicDate = new Date(topic.created_at).getTime();
             return topicDate <= endDate;
           });

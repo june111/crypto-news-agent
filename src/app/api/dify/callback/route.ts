@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
     }
     
     // 处理图片链接
-    const coverImage = callbackData.image && callbackData.image.length > 0 
-      ? callbackData.image[0].url 
+    const coverImage = callbackData.image && Array.isArray(callbackData.image) && callbackData.image.length > 0 
+      ? callbackData.image[0]?.url || 'https://img0.baidu.com/it/u=4160253413,3711804954&fm=253&fmt=auto&app=138&f=JPEG?w=708&h=500'
       : 'https://img0.baidu.com/it/u=4160253413,3711804954&fm=253&fmt=auto&app=138&f=JPEG?w=708&h=500'; // 默认图片
     
     // 从标题中提取可能的关键词
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: '文章已成功保存',
-      article: data && data.length > 0 ? data[0] : articleData
+      article: data && Array.isArray(data) && data.length > 0 ? data[0] : articleData
     });
     
   } catch (error: any) {
