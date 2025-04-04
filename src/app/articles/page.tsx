@@ -50,6 +50,7 @@ import styles from './articles.module.css';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Article, ArticleStatus, ARTICLE_CATEGORIES } from '@/types/article';
 import { isValidUUID } from '@/utils/uuid';
+import useI18n from '@/hooks/useI18n';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -72,7 +73,7 @@ interface Template {
 }
 
 // 状态选项
-const STATUS_OPTIONS: ArticleStatus[] = ['待审核', '已发布', '不过审', '发布失败'];
+const STATUS_OPTIONS: ArticleStatus[] = ['草稿', '待审核', '已发布', '不过审', '发布失败', '已下架'];
 
 // 获取状态对应的颜色
 const getStatusColor = (status: ArticleStatus) => {
@@ -85,6 +86,10 @@ const getStatusColor = (status: ArticleStatus) => {
       return 'error';
     case '发布失败':
       return 'warning';
+    case '草稿':
+      return 'cyan';
+    case '已下架':
+      return 'default';
     default:
       return 'default';
   }
@@ -99,6 +104,8 @@ const getArticleStats = (articles: Article[]) => {
   const pendingCount = articles.filter(article => article.status === '待审核').length;
   const rejectedCount = articles.filter(article => article.status === '不过审').length;
   const failedCount = articles.filter(article => article.status === '发布失败').length;
+  const draftCount = articles.filter(article => article.status === '草稿').length;
+  const unpublishedCount = articles.filter(article => article.status === '已下架').length;
   
   // 按分类统计
   const categoryMap = new Map<string, number>();
@@ -113,6 +120,8 @@ const getArticleStats = (articles: Article[]) => {
     pendingCount,
     rejectedCount, 
     failedCount,
+    draftCount,
+    unpublishedCount,
     categoryMap
   };
 };
@@ -172,6 +181,7 @@ const safeLocalStorage = {
 export default function ArticlesPage() {
   const router = useRouter();
   const [messageApi, contextHolder] = message.useMessage();
+  const { t } = useI18n(); // 使用国际化钩子
   
   // 核心状态 - 最小化状态数量
   const [articles, setArticles] = useState<Article[]>([]);
@@ -272,18 +282,24 @@ export default function ArticlesPage() {
     }
   };
 
-  // API状态映射到前端状态
-  const mapStatusFromApi = (apiStatus: string): ArticleStatus => {
-    const statusMap: Record<string, ArticleStatus> = {
-      'draft': '草稿',
-      'pending': '待审核',
-      'published': '已发布',
-      'rejected': '不过审',
-      'failed': '发布失败',
-      'unpublished': '已下架'
-    };
-    
-    return statusMap[apiStatus] || '草稿';
+  // 将API状态映射到前端状态
+  const mapStatusFromApi = (apiStatus: string): string => {
+    switch (apiStatus) {
+      case 'draft':
+        return '草稿';
+      case 'pending':
+        return '待审核';
+      case 'published':
+        return '已发布';
+      case 'rejected':
+        return '不过审';
+      case 'failed':
+        return '发布失败';
+      case 'unpublished':
+        return '已下架';
+      default:
+        return '草稿';
+    }
   };
 
   // 获取热点话题列表
@@ -903,9 +919,9 @@ export default function ArticlesPage() {
       {/* 页面标题 */}
       <div className={styles.pageHeader}>
         <div>
-          <Title level={2} className={styles.pageTitle}>文章管理</Title>
+          <Title level={2} className={styles.pageTitle}>{t('articles.title')}</Title>
           <Text type="secondary" className={styles.pageDescription}>
-            创建、编辑和管理所有状态的文章
+            {t('articles.description')}
           </Text>
         </div>
         
@@ -917,7 +933,7 @@ export default function ArticlesPage() {
               onClick={handleCreateArticle}
               size="large"
             >
-              新建文章
+              {t('articles.createArticle')}
             </Button>
             
             <Button
@@ -929,7 +945,7 @@ export default function ArticlesPage() {
               </svg>}
               size="large"
             >
-              生成AI文章
+              {t('articles.generateArticle')}
             </Button>
           </Space>
         </div>

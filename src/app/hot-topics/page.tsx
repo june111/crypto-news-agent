@@ -20,7 +20,8 @@ import {
   Empty,
   Spin,
   App,
-  message
+  message,
+  Statistic
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { 
@@ -45,6 +46,7 @@ import {
 } from './constants';
 import api from '@/lib/api-client';
 import { logError, logInfo } from '@/lib/db/utils/logger';
+import useI18n from '@/hooks/useI18n';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -82,19 +84,22 @@ interface DisplayHotTopic {
 }
 
 // 加载状态组件
-const LoadingComponent = () => (
-  <div style={{ 
-    padding: '40px', 
-    textAlign: 'center',
-    borderRadius: '8px',
-    background: 'rgba(255, 255, 255, 0.8)',
-    backdropFilter: 'blur(4px)',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
-  }}>
-    <Spin size="large" />
-    <div style={{ marginTop: '16px', fontWeight: 500, opacity: 0.8 }}>加载中...</div>
-  </div>
-);
+const LoadingComponent = () => {
+  const { t } = useI18n();
+  return (
+    <div style={{ 
+      padding: '40px', 
+      textAlign: 'center',
+      borderRadius: '8px',
+      background: 'rgba(255, 255, 255, 0.8)',
+      backdropFilter: 'blur(4px)',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+    }}>
+      <Spin size="large" />
+      <div style={{ marginTop: '16px', fontWeight: 500, opacity: 0.8 }}>{t('common.loading')}</div>
+    </div>
+  );
+};
 
 // 页面骨架屏
 const PageSkeleton: React.FC = () => (
@@ -104,7 +109,7 @@ const PageSkeleton: React.FC = () => (
     <Row gutter={[16, 16]} style={{ marginTop: 24, marginBottom: 24 }}>
       {[1, 2, 3].map(i => (
         <Col xs={24} sm={12} md={8} key={i}>
-          <Card hoverable variant="borderless" style={{ borderRadius: '8px', overflow: 'hidden' }}>
+          <Card hoverable style={{ borderRadius: '8px', overflow: 'hidden' }}>
             <Skeleton active paragraph={{ rows: 1 }} />
           </Card>
         </Col>
@@ -113,7 +118,6 @@ const PageSkeleton: React.FC = () => (
     
     <Skeleton active paragraph={{ rows: 1 }} />
     <Card 
-      variant="borderless" 
       style={{ borderRadius: '8px', overflow: 'hidden' }}
     >
       <Skeleton active paragraph={{ rows: 8 }} />
@@ -122,6 +126,8 @@ const PageSkeleton: React.FC = () => (
 );
 
 const HotTopicsPage: React.FC = () => {
+  const { t } = useI18n();
+  
   // 核心状态
   const [topics, setTopics] = useState<DisplayHotTopic[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -388,7 +394,7 @@ const HotTopicsPage: React.FC = () => {
   // 表格列定义
   const columns: ColumnsType<DisplayHotTopic> = [
     {
-      title: '日期',
+      title: t('hotTopics.date'),
       dataIndex: 'date',
       key: 'date',
       width: 120,
@@ -399,7 +405,7 @@ const HotTopicsPage: React.FC = () => {
       defaultSortOrder: 'descend',
     },
     {
-      title: '热点关键词',
+      title: t('hotTopics.keyword'),
       dataIndex: 'keyword',
       key: 'keyword',
       render: (text: string, record: DisplayHotTopic) => (
@@ -423,7 +429,7 @@ const HotTopicsPage: React.FC = () => {
       sorter: (a, b) => a.keyword.localeCompare(b.keyword),
     },
     {
-      title: '搜索量',
+      title: t('hotTopics.volume'),
       dataIndex: 'volume',
       key: 'volume',
       width: 120,
@@ -435,7 +441,7 @@ const HotTopicsPage: React.FC = () => {
       sorter: (a, b) => a.volume - b.volume,
     },
     {
-      title: '来源',
+      title: t('hotTopics.source'),
       dataIndex: 'source',
       key: 'source',
       width: 120,
@@ -447,13 +453,13 @@ const HotTopicsPage: React.FC = () => {
           borderRadius: '12px',
           fontSize: '12px'
         }}>
-          {source || '未知来源'}
+          {source || t('common.unknownSource')}
         </Text>
       ),
       sorter: (a, b) => (a.source || '').localeCompare(b.source || ''),
     },
     {
-      title: '操作',
+      title: t('hotTopics.actions'),
       key: 'action',
       width: 120,
       render: (_: any, record: DisplayHotTopic) => (
@@ -469,13 +475,13 @@ const HotTopicsPage: React.FC = () => {
             style={{ color: '#1890ff' }}
           />
         <Popconfirm
-          title="确认删除"
-          description={`确定要删除"${record.keyword}"关键词吗？此操作无法撤销。`}
+          title={t('common.confirmDelete')}
+          description={t('hotTopics.deleteConfirm')}
             onConfirm={(e) => {
               handleDeleteTopic(record.id);
             }}
-            okText="确认"
-          cancelText="取消"
+            okText={t('common.confirm')}
+          cancelText={t('common.cancel')}
           okButtonProps={{ danger: true }}
             icon={<ExclamationCircleOutlined style={{ color: 'red' }} />}
           >
@@ -569,9 +575,9 @@ const HotTopicsPage: React.FC = () => {
           <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
             <Col>
               <div>
-                <Title level={2} style={{ margin: 0 }}>热点列表</Title>
+                <Title level={2} style={{ margin: 0 }}>{t('hotTopics.title')}</Title>
                 <Text type="secondary">
-                  跟踪和管理加密货币相关热点话题，了解最新趋势
+                  {t('hotTopics.subtitle')}
                 </Text>
               </div>
             </Col>
@@ -586,7 +592,7 @@ const HotTopicsPage: React.FC = () => {
                   boxShadow: '0 2px 0 rgba(0, 0, 0, 0.045)'
                 }}
               >
-                添加热点
+                {t('hotTopics.addTopic')}
               </Button>
             </Col>
           </Row>
@@ -597,7 +603,7 @@ const HotTopicsPage: React.FC = () => {
           <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
             {[1, 2, 3].map(i => (
               <Col xs={24} sm={8} key={i}>
-                <Card variant="borderless" style={{ borderRadius: '8px', overflow: 'hidden' }}>
+                <Card hoverable style={{ borderRadius: '8px', overflow: 'hidden' }}>
                   <Skeleton active paragraph={{ rows: 1 }} />
                 </Card>
               </Col>
@@ -618,12 +624,11 @@ const HotTopicsPage: React.FC = () => {
             borderRadius: '8px',
             boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)'
           }}
-          variant="borderless"
         >
           <Row gutter={16} align="middle">
             <Col flex="auto">
               <Input
-                placeholder="搜索热点关键词..."
+                placeholder={t('hotTopics.searchPlaceholder')}
                 prefix={<SearchOutlined style={{ color: '#1890ff' }} />}
                 onChange={handleSearch}
                 allowClear
@@ -633,7 +638,7 @@ const HotTopicsPage: React.FC = () => {
             </Col>
             <Col style={{ width: 200 }}>
               <Select
-                placeholder="选择来源筛选"
+                placeholder={t('hotTopics.filterSource')}
                 style={{ width: '100%' }}
                 allowClear
                 size="large"
@@ -647,7 +652,6 @@ const HotTopicsPage: React.FC = () => {
         
         {/* 表格区域 */}
         <Card 
-          variant="borderless" 
           style={{ 
             borderRadius: '8px',
             boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)'
@@ -665,13 +669,13 @@ const HotTopicsPage: React.FC = () => {
                 defaultPageSize: 10,
                 showSizeChanger: true,
                 pageSizeOptions: ['10', '20', '50'],
-                showTotal: (total) => `共 ${total} 条热点数据`,
+                showTotal: (total) => `${t('common.total')}: ${total} ${t('hotTopics.items')}`,
                 style: { marginTop: 16 }
               }}
               rowClassName={getRowClassName}
               locale={{
                 emptyText: <Empty 
-                  description={searchKeyword ? '没有找到匹配的热点数据' : '暂无热点数据'} 
+                  description={searchKeyword ? t('hotTopics.noSearchResults') : t('hotTopics.noTopics')} 
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
                 />
               }}
@@ -690,7 +694,7 @@ const HotTopicsPage: React.FC = () => {
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <FireOutlined style={{ color: getVolumeColor(selectedTopic.volume) }} />
-                <span>热点话题详情</span>
+                <span>{t('hotTopics.detail')}</span>
               </div>
             }
             open={isDetailVisible}

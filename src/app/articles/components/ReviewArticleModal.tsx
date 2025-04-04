@@ -6,6 +6,17 @@ import { CheckOutlined, CloseOutlined, FileTextOutlined, PictureOutlined } from 
 import { Article, ArticleStatus } from '@/types/article';
 import styles from '../articles.module.css';
 import dayjs from 'dayjs';
+import useI18n from '@/hooks/useI18n';
+
+// 状态与国际化键值映射
+const STATUS_KEYS = {
+  '草稿': 'draft',
+  '待审核': 'pending',
+  '已发布': 'published',
+  '不过审': 'rejected',
+  '发布失败': 'failed',
+  '已下架': 'unpublished'
+};
 
 interface ReviewArticleModalProps {
   visible: boolean;
@@ -24,49 +35,42 @@ const ReviewArticleModal: React.FC<ReviewArticleModalProps> = ({
   onClose,
   onUpdateStatus
 }) => {
-  const [isReviewing, setIsReviewing] = useState(false);
+  const { t } = useI18n();
+  const [loading, setLoading] = useState<boolean>(false);
   
   // 获取当前文章
   const article = articles.find(a => a.id === articleId);
   
   // 处理审核通过
   const handleApprove = async () => {
+    setLoading(true);
     try {
-      setIsReviewing(true);
-      
-      // 减少API调用的等待时间
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // 更新文章状态
-      onUpdateStatus(articleId, '已发布');
+      await onUpdateStatus(articleId, '已发布');
+      onClose();
     } catch (error) {
       console.error('审核失败:', error);
     } finally {
-      setIsReviewing(false);
+      setLoading(false);
     }
   };
   
   // 处理审核拒绝
   const handleReject = async () => {
+    setLoading(true);
     try {
-      setIsReviewing(true);
-      
-      // 减少API调用的等待时间
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // 更新文章状态
-      onUpdateStatus(articleId, '不过审');
+      await onUpdateStatus(articleId, '不过审');
+      onClose();
     } catch (error) {
-      console.error('审核失败:', error);
+      console.error('驳回失败:', error);
     } finally {
-      setIsReviewing(false);
+      setLoading(false);
     }
   };
   
   // 处理重新发送
   const handleResend = async () => {
     try {
-      setIsReviewing(true);
+      setLoading(true);
       
       // 减少API调用的等待时间
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -76,7 +80,7 @@ const ReviewArticleModal: React.FC<ReviewArticleModalProps> = ({
     } catch (error) {
       console.error('重新发送失败:', error);
     } finally {
-      setIsReviewing(false);
+      setLoading(false);
     }
   };
   
@@ -89,107 +93,95 @@ const ReviewArticleModal: React.FC<ReviewArticleModalProps> = ({
   return (
     <Modal
       open={visible}
-      title={
-        <Space>
-          <FileTextOutlined />
-          <Title level={4} style={{ margin: 0 }}>文章审核</Title>
-        </Space>
-      }
+      title={t('articles.reviewArticle')}
       onCancel={onClose}
-      footer={[
-        <Button key="reject" danger icon={<CloseOutlined />} onClick={handleReject} loading={isReviewing}>
-          拒绝
-        </Button>,
-        <Button key="approve" type="primary" icon={<CheckOutlined />} onClick={handleApprove} loading={isReviewing}>
-          通过
-        </Button>,
-        <Button key="cancel" onClick={onClose}>
-          取消
-        </Button>
-      ]}
       width={800}
-      style={{ top: 20 }}
-      styles={{ body: { maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' } }}
+      footer={
+        article?.status === '待审核' ? (
+          <Space>
+            <Button onClick={onClose}>{t('common.cancel')}</Button>
+            <Button 
+              type="primary" 
+              danger
+              icon={<CloseOutlined />}
+              onClick={handleReject}
+              loading={loading}
+            >
+              {t('articles.reject')}
+            </Button>
+            <Button 
+              type="primary"
+              icon={<CheckOutlined />}
+              onClick={handleApprove}
+              loading={loading}
+            >
+              {t('articles.approve')}
+            </Button>
+          </Space>
+        ) : (
+          <Button onClick={onClose}>{t('common.close')}</Button>
+        )
+      }
+      style={{ top: 20, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}
     >
-      <div style={{ marginBottom: 16 }}>
-        <Title level={5}>{article.title}</Title>
-        <Space split={<Divider type="vertical" />} style={{ marginBottom: 16 }}>
-          <Text type="secondary">作者: {article.author || '未知'}</Text>
-          <Text type="secondary">分类: {article.category || '未分类'}</Text>
-          <Text type="secondary">创建时间: {formattedDate}</Text>
-        </Space>
-      </div>
-      
-      {/* 封面图预览 */}
-      {article.coverImage && (
-        <Card 
-          title={
-            <Space>
-              <PictureOutlined />
-              <span>封面图</span>
-            </Space>
-          }
-          size="small" 
-          style={{ marginBottom: 16 }}
-          styles={{ 
-            body: { 
-              display: 'flex', 
-              justifyContent: 'center', 
-              padding: '12px',
-              background: '#f9f9f9'
-            }
-          }}
-        >
-          <Image
-            src={article.coverImage}
-            alt={article.title}
-            style={{ 
-              maxHeight: '200px',
-              objectFit: 'contain',
-              cursor: 'zoom-in',
-              borderRadius: '4px'
-            }}
-            preview={{
-              mask: '点击查看大图',
-              maskClassName: styles.imageMask
-            }}
-          />
-        </Card>
-      )}
-      
-      <Card 
-        title="文章摘要" 
-        size="small" 
-        style={{ marginBottom: 16 }}
-        styles={{ body: { maxHeight: '150px', overflow: 'auto' } }}
-      >
-        <Paragraph>{article.summary}</Paragraph>
-      </Card>
-      
-      <Card 
-        title="文章正文" 
-        size="small"
-        styles={{ body: { maxHeight: '300px', overflow: 'auto' } }}
-      >
-        <div 
-          dangerouslySetInnerHTML={{ __html: article.content || '' }} 
-          style={{ 
-            padding: '10px',
-            fontSize: '14px',
-            lineHeight: '1.6'
-          }}
-        />
-      </Card>
-      
-      {Array.isArray(article.keywords) && article.keywords.length > 0 && (
-        <div style={{ marginTop: 16 }}>
-          <Text strong>关键词: </Text>
-          {article.keywords.map((keyword, index) => (
-            <Text key={index} style={{ marginRight: 8 }}>
-              {keyword}
-              {index < article.keywords.length - 1 ? ',' : ''}
-            </Text>
-          ))}
+      {!article ? (
+        <Spin tip={t('common.loading')} size="large" />
+      ) : (
+        <div className={styles.reviewContent}>
+          <Typography.Title level={4}>{article.title}</Typography.Title>
+          
+          <Space className={styles.articleMeta}>
+            <Typography.Text type="secondary">
+              {t('articles.category')}: {article.category}
+            </Typography.Text>
+            <Typography.Text type="secondary">
+              {t('articles.status')}: {t(`articles.${STATUS_KEYS[article.status]}`)}
+            </Typography.Text>
+            <Typography.Text type="secondary">
+              {t('articles.createDate')}: {formattedDate}
+            </Typography.Text>
+          </Space>
+          
+          <Divider />
+          
+          {/* 封面图预览 */}
+          {article.coverImage && (
+            <div className={styles.coverImage}>
+              <Typography.Title level={5} className={styles.sectionTitle}>
+                <PictureOutlined /> {t('articles.coverImage')}
+              </Typography.Title>
+              <Image
+                src={article.coverImage}
+                alt={article.title}
+                className={styles.previewImage}
+              />
+              <Divider />
+            </div>
+          )}
+          
+          <div className={styles.contentSection}>
+            <Typography.Title level={5} className={styles.sectionTitle}>
+              <FileTextOutlined /> {t('articles.content')}
+            </Typography.Title>
+            <Card className={styles.contentCard}>
+              <div 
+                dangerouslySetInnerHTML={{ __html: article.content || '' }} 
+                className={styles.articleContent}
+              />
+            </Card>
+          </div>
+          
+          {Array.isArray(article.keywords) && article.keywords.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <Text strong>关键词: </Text>
+              {article.keywords.map((keyword, index) => (
+                <Text key={index} style={{ marginRight: 8 }}>
+                  {keyword}
+                  {index < article.keywords.length - 1 ? ',' : ''}
+                </Text>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </Modal>

@@ -4,6 +4,7 @@ import React from 'react';
 import { Table, Tag, Button, Space, Dropdown, Menu } from 'antd';
 import { MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { Article } from '@/types/article';
+import useI18n from '@/hooks/useI18n';
 
 // 获取状态对应的标签颜色
 const getStatusTagColor = (status: string): string => {
@@ -25,6 +26,16 @@ const getStatusTagColor = (status: string): string => {
   }
 };
 
+// 状态与国际化键值映射
+const STATUS_KEYS = {
+  '草稿': 'draft',
+  '待审核': 'pending',
+  '已发布': 'published',
+  '不过审': 'rejected',
+  '发布失败': 'failed',
+  '已下架': 'unpublished'
+};
+
 interface ArticleListProps {
   articles: Article[];
   loading: boolean;
@@ -40,62 +51,67 @@ const ArticleList: React.FC<ArticleListProps> = ({
   onDeleteArticle,
   onReviewArticle
 }) => {
-  // 表格列定义
+  const { t } = useI18n();
+
   const columns = [
-    // ... 其他列
     {
-      title: '状态',
+      title: t('articles.articleTitle'),
+      dataIndex: 'title',
+      key: 'title',
+      render: (text: string) => <a>{text}</a>,
+    },
+    {
+      title: t('articles.category'),
+      dataIndex: 'category',
+      key: 'category',
+    },
+    {
+      title: t('articles.status'),
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
         <Tag color={getStatusTagColor(status)}>
-          {status}
+          {t(`articles.${STATUS_KEYS[status]}`)}
         </Tag>
       ),
-      width: 100,
-      align: 'center' as const
     },
-    // ... 其他列
     {
-      title: '操作',
+      title: t('articles.createDate'),
+      dataIndex: 'createDate',
+      key: 'createDate',
+    },
+    {
+      title: t('common.action'),
       key: 'action',
       render: (_, record: Article) => (
         <Space size="middle">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => onEditArticle(record.id)}
-          />
-          <Button
-            type="text"
+          <Button 
+            type="text" 
             icon={<EyeOutlined />} 
             onClick={() => onReviewArticle(record.id)}
           />
-          <Button
-            type="text"
-            danger
-            icon={<DeleteOutlined />}
+          <Button 
+            type="text" 
+            icon={<EditOutlined />} 
+            onClick={() => onEditArticle(record.id)}
+          />
+          <Button 
+            type="text" 
+            icon={<DeleteOutlined />} 
             onClick={() => onDeleteArticle(record.id)}
+            danger
           />
         </Space>
       ),
-      width: 150,
-      align: 'center' as const
-    }
+    },
   ];
 
   return (
-    <Table
-      dataSource={articles}
-      columns={columns}
-      rowKey="id"
+    <Table 
+      columns={columns} 
+      dataSource={articles} 
+      rowKey="id" 
       loading={loading}
-      pagination={{
-        pageSize: 10,
-        showSizeChanger: true,
-        showQuickJumper: true,
-        showTotal: (total) => `共 ${total} 篇文章`
-      }}
     />
   );
 };

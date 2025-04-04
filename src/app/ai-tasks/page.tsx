@@ -31,7 +31,8 @@ import {
   FileTextOutlined,
   FormOutlined,
   CalendarOutlined,
-  ApiOutlined
+  ApiOutlined,
+  PlusOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing, fontSizes, borderRadius } from '@/styles/theme';
@@ -41,16 +42,25 @@ import dayjs from 'dayjs';
 // 命令：npm install react-markdown
 import ReactMarkdown from 'react-markdown';
 import dynamic from 'next/dynamic';
+import useI18n from '@/hooks/useI18n';
+import { useRouter } from 'next/navigation';
+import { logError, logInfo } from '@/lib/db/utils/logger';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 // 动态导入Dify任务组件，以避免SSR问题
-const DifyTasksComponent = dynamic(() => import('./dify-tasks'), { 
-  ssr: false,
-  loading: () => <div>正在加载Dify任务列表...</div>
-});
+const DifyTasksComponent = () => {
+  return (
+    <div style={{ padding: '20px', textAlign: 'center' }}>
+      <Empty 
+        description="Dify API接入中，敬请期待" 
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+      />
+    </div>
+  );
+};
 
 // AI任务类型定义
 interface AITask {
@@ -72,69 +82,21 @@ interface AITask {
 }
 
 const AITasksPage = () => {
-  // 模拟AI任务数据
-  const [tasks, setTasks] = useState<AITask[]>([
-    { 
-      id: '1', 
-      name: '生成比特币周报封面', 
-      type: '封面图', 
-      status: '已完成', 
-      createdAt: '2025-03-29 09:15',
-      completedAt: '2025-03-29 09:18',
-      result: {
-        template: '市场分析模板',
-        keywords: ['比特币', '市场分析', '周报'],
-        coverImage: 'https://via.placeholder.com/800x400?text=Bitcoin+Weekly+Report'
-      }
-    },
-    { 
-      id: '2', 
-      name: '生成以太坊价格趋势标题', 
-      type: '标题', 
-      status: '已完成', 
-      createdAt: '2025-03-29 10:30',
-      completedAt: '2025-03-29 10:35',
-      result: {
-        template: '市场分析模板',
-        keywords: ['以太坊', '价格', '趋势分析'],
-        generatedTitles: [
-          '以太坊价格走势分析：突破2000美元关口的技术因素',
-          '2025年以太坊价格展望：机构投资者如何影响市场',
-          '以太坊价格趋势：Layer2解决方案推动的新增长点'
-        ]
-      }
-    },
-    { 
-      id: '3', 
-      name: '监控新兴NFT项目', 
-      type: '标题', 
-      status: '排队中', 
-      createdAt: '2025-03-29 11:45'
-    },
-    { 
-      id: '4', 
-      name: '生成比特币白皮书解析文章', 
-      type: '文章内容', 
-      status: '已完成', 
-      createdAt: '2025-03-28 15:20',
-      completedAt: '2025-03-28 15:25',
-      result: {
-        template: '技术解析模板',
-        keywords: ['比特币', '白皮书', '区块链'],
-        title: '深入解析比特币白皮书：中本聪的去中心化愿景',
-        summary: '本文对比特币白皮书进行了详细解析，探讨了中本聪的去中心化愿景及其对现代金融体系的影响。',
-        content: '# 深入解析比特币白皮书：中本聪的去中心化愿景\n\n## 引言\n\n2008年10月31日，一个化名为中本聪的神秘人物发布了《比特币：一种点对点的电子现金系统》白皮书，这份文件奠定了比特币和区块链技术的基础...\n\n## 核心概念\n\n比特币白皮书引入了几个革命性的概念：区块链、工作量证明、去中心化共识机制...\n\n## 技术创新\n\n白皮书中最具创新性的方面在于解决了双重支付问题，同时不依赖于中央机构...\n\n## 影响与意义\n\n比特币白皮书不仅创造了第一种加密货币，更重要的是开创了一个全新的技术领域...'
-      }
-    },
-    { 
-      id: '5', 
-      name: '生成莱特币市场分析封面', 
-      type: '封面图', 
-      status: '失败', 
-      createdAt: '2025-03-28 16:30',
-      completedAt: '2025-03-28 16:32'
-    }
-  ]);
+  const router = useRouter();
+  const [messageApi, contextHolder] = message.useMessage();
+  const { t } = useI18n();
+  
+  // 页面状态
+  const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState<AITask[]>([]);
+  const [searchText, setSearchText] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [currentTask, setCurrentTask] = useState<AITask | null>(null);
+  const [resultModalVisible, setResultModalVisible] = useState(false);
+  const [resultLoading, setResultLoading] = useState(false);
+  const [taskResult, setTaskResult] = useState<any>(null);
   
   // 添加tab选项卡状态
   const [activeTab, setActiveTab] = useState('2');
@@ -143,10 +105,6 @@ const AITasksPage = () => {
   const [completionDateRange, setCompletionDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string>('');
-  
-  // 结果查看弹窗状态
-  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
-  const [currentTask, setCurrentTask] = useState<AITask | null>(null);
   
   // 获取任务类型对应的图标和颜色
   const getTypeInfo = (type: AITask['type']) => {
@@ -183,13 +141,13 @@ const AITasksPage = () => {
     const task = tasks.find(task => task.id === id);
     if (task) {
       setCurrentTask(task);
-      setIsResultModalOpen(true);
+      setResultModalVisible(true);
     }
   };
   
   // 关闭结果弹窗
   const handleCloseResultModal = () => {
-    setIsResultModalOpen(false);
+    setResultModalVisible(false);
     setCurrentTask(null);
   };
   
@@ -229,6 +187,11 @@ const AITasksPage = () => {
     setCompletionDateRange(null);
     setSelectedStatus('');
     setSelectedType('');
+  };
+  
+  // 显示创建任务弹窗
+  const handleShowModal = () => {
+    setModalVisible(true);
   };
   
   // 计算任务耗时（分钟）
@@ -476,129 +439,149 @@ const AITasksPage = () => {
   
   return (
     <DashboardLayout>
-      <Row>
-        <Col span={24}>
-          <Title level={2}>AI任务管理</Title>
-          <Text type="secondary">
-            管理和监控所有AI任务的执行情况，包括标题生成、内容创作和图像生成任务。
-          </Text>
-        </Col>
-      </Row>
-      
-      <Divider />
-      
-      <Tabs 
-        activeKey={activeTab} 
-        onChange={setActiveTab}
-        items={[
-          {
-            key: '1',
-            label: (
-              <span>
-                <CalendarOutlined />
-                内部AI任务
-              </span>
-            ),
-            children: (
-              <>
-                <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                  <Col xs={24} md={8}>
-                    <Form layout="vertical">
-                      <Form.Item label="完成日期范围">
-                        <RangePicker 
-                          value={completionDateRange}
-                          onChange={handleDateRangeChange}
-                          style={{ width: '100%' }}
-                        />
-                      </Form.Item>
-                    </Form>
-                  </Col>
-                  <Col xs={24} md={6}>
-                    <Form layout="vertical">
-                      <Form.Item label="任务状态">
-                        <Select 
-                          placeholder="选择状态" 
-                          style={{ width: '100%' }}
-                          value={selectedStatus}
-                          onChange={handleStatusChange}
-                          allowClear
-                        >
-                          <Option value="进行中">进行中</Option>
-                          <Option value="已完成">已完成</Option>
-                          <Option value="失败">失败</Option>
-                          <Option value="排队中">排队中</Option>
-                        </Select>
-                      </Form.Item>
-                    </Form>
-                  </Col>
-                  <Col xs={24} md={6}>
-                    <Form layout="vertical">
-                      <Form.Item label="任务类型">
-                        <Select 
-                          placeholder="选择类型" 
-                          style={{ width: '100%' }}
-                          value={selectedType}
-                          onChange={handleTypeChange}
-                          allowClear
-                        >
-                          <Option value="封面图">封面图</Option>
-                          <Option value="标题">标题</Option>
-                          <Option value="文章内容">文章内容</Option>
-                        </Select>
-                      </Form.Item>
-                    </Form>
-                  </Col>
-                  <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'flex-end' }}>
-                    <Button 
-                      icon={<ReloadOutlined />} 
-                      onClick={handleClearFilters}
-                      style={{ marginBottom: 24 }}
-                    >
-                      重置筛选
-                    </Button>
-                  </Col>
-                </Row>
-                
-                <Table 
-                  columns={columns} 
-                  dataSource={Array.isArray(filteredTasks) ? filteredTasks : []} 
-                  rowKey="id"
-                  pagination={{ 
-                    pageSize: 10, 
-                    showSizeChanger: true, 
-                    showTotal: (total) => `共 ${total} 个任务`
-                  }}
-                />
-              </>
-            )
-          },
-          {
-            key: '2',
-            label: (
-              <span>
-                <ApiOutlined />
-                Dify任务列表
-              </span>
-            ),
-            children: <DifyTasksComponent />
-          }
-        ]}
-      />
-      
-      {/* 任务结果查看弹窗 */}
-      <Modal
-        title={`任务结果 - ${currentTask?.name}`}
-        open={isResultModalOpen}
-        onCancel={handleCloseResultModal}
-        footer={[
-          <Button key="close" onClick={handleCloseResultModal}>
-            关闭
-          </Button>
-        ]}
-        width={800}
-      >
-        {renderTaskResult()}
-      </Modal>
+      {contextHolder}
+      <div style={{ padding: '24px' }}>
+        {/* 页面标题 */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '24px' 
+        }}>
+          <div>
+            <Title level={2}>{t('aiTasks.title')}</Title>
+            <Text type="secondary">
+              {t('aiTasks.description')}
+            </Text>
+          </div>
+          
+          <div>
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />}
+              onClick={handleShowModal}
+              size="large"
+            >
+              {t('aiTasks.createTask')}
+            </Button>
+          </div>
+        </div>
+        
+        <Divider />
+        
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={setActiveTab}
+          items={[
+            {
+              key: '1',
+              label: (
+                <span>
+                  <CalendarOutlined />
+                  内部AI任务
+                </span>
+              ),
+              children: (
+                <>
+                  <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                    <Col xs={24} md={8}>
+                      <Form layout="vertical">
+                        <Form.Item label="完成日期范围">
+                          <RangePicker 
+                            value={completionDateRange}
+                            onChange={handleDateRangeChange}
+                            style={{ width: '100%' }}
+                          />
+                        </Form.Item>
+                      </Form>
+                    </Col>
+                    <Col xs={24} md={6}>
+                      <Form layout="vertical">
+                        <Form.Item label={t('aiTasks.status')}>
+                          <Select 
+                            placeholder="选择状态" 
+                            style={{ width: '100%' }}
+                            value={selectedStatus}
+                            onChange={handleStatusChange}
+                            allowClear
+                          >
+                            <Option value="进行中">进行中</Option>
+                            <Option value="已完成">已完成</Option>
+                            <Option value="失败">失败</Option>
+                            <Option value="排队中">排队中</Option>
+                          </Select>
+                        </Form.Item>
+                      </Form>
+                    </Col>
+                    <Col xs={24} md={6}>
+                      <Form layout="vertical">
+                        <Form.Item label={t('aiTasks.itemDescription')}>
+                          <Select 
+                            placeholder="选择类型" 
+                            style={{ width: '100%' }}
+                            value={selectedType}
+                            onChange={handleTypeChange}
+                            allowClear
+                          >
+                            <Option value="封面图">封面图</Option>
+                            <Option value="标题">标题</Option>
+                            <Option value="文章内容">文章内容</Option>
+                          </Select>
+                        </Form.Item>
+                      </Form>
+                    </Col>
+                    <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'flex-end' }}>
+                      <Button 
+                        icon={<ReloadOutlined />} 
+                        onClick={handleClearFilters}
+                        style={{ marginBottom: 24 }}
+                      >
+                        重置筛选
+                      </Button>
+                    </Col>
+                  </Row>
+                  
+                  <Table 
+                    columns={columns} 
+                    dataSource={Array.isArray(filteredTasks) ? filteredTasks : []} 
+                    rowKey="id"
+                    pagination={{ 
+                      pageSize: 10, 
+                      showSizeChanger: true, 
+                      showTotal: (total) => `共 ${total} 个任务`
+                    }}
+                  />
+                </>
+              )
+            },
+            {
+              key: '2',
+              label: (
+                <span>
+                  <ApiOutlined />
+                  Dify任务列表
+                </span>
+              ),
+              children: <DifyTasksComponent />
+            }
+          ]}
+        />
+        
+        {/* 任务结果查看弹窗 */}
+        <Modal
+          title={`任务结果 - ${currentTask?.name}`}
+          open={resultModalVisible}
+          onCancel={handleCloseResultModal}
+          footer={[
+            <Button key="close" onClick={handleCloseResultModal}>
+              关闭
+            </Button>
+          ]}
+          width={800}
+        >
+          {renderTaskResult()}
+        </Modal>
+      </div>
     </DashboardLayout>
   );
 };

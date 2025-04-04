@@ -1,15 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, Form, Input, Select, DatePicker, Row, Col, Button, Tag, Space } from 'antd';
 import { SearchOutlined, ClearOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { Article, ArticleStatus, ARTICLE_CATEGORIES } from '@/types/article';
+import useI18n from '@/hooks/useI18n';
 
 import styles from '../articles.module.css';
-import { ArticleStatus } from '@/types/article';
 
 // 状态选项
 const STATUS_OPTIONS = ['草稿', '待审核', '已发布', '不过审', '发布失败', '已下架'];
+const STATUS_KEYS = ['draft', 'pending', 'published', 'rejected', 'failed', 'unpublished'];
 
 // 获取状态颜色
 const getStatusColor = (status: string): string => {
@@ -53,153 +55,123 @@ const ArticleFilters: React.FC<ArticleFiltersProps> = ({
   onClearFilters,
   categories
 }) => {
-  // 处理标题变化
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onFilterChange('title', e.target.value);
-  };
+  const { t, locale } = useI18n();
 
+  // 处理文本输入变化
+  const handleTextChange = (e) => {
+    const { name, value } = e.target;
+    onFilterChange(name, value);
+  };
+  
+  // 处理选择器变化
+  const handleSelectChange = (value, name) => {
+    onFilterChange(name, value);
+  };
+  
   // 处理日期变化
-  const handleDateChange = (date: dayjs.Dayjs | null) => {
+  const handleDateChange = (date) => {
     onFilterChange('date', date ? date.format('YYYY-MM-DD') : null);
-  };
-
-  // 处理关键词搜索变化
-  const handleKeywordSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onFilterChange('keyword', e.target.value);
-  };
-
-  // 处理分类变化
-  const handleCategoryChange = (value: string) => {
-    onFilterChange('category', value);
-  };
-
-  // 处理正文搜索变化
-  const handleContentSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onFilterChange('content', e.target.value);
-  };
-
-  // 处理状态变化
-  const handleStatusChange = (value: string) => {
-    onFilterChange('status', value);
   };
 
   return (
     <Card 
-      variant="borderless"
-      className={styles.searchBox}
+      className={styles.filtersCard}
       title={
-        <div className={styles.searchHeader}>
-          <span>搜索筛选</span>
-          <Space>
-            <Button
-              icon={<ClearOutlined />}
-              onClick={onClearFilters}
-              className={styles.clearButton}
-            >
-              清空筛选
-            </Button>
-          </Space>
+        <div className={styles.filterHeader}>
+          <span>{t('common.filter')}</span>
+          <Button 
+            type="link" 
+            icon={<ClearOutlined />} 
+            onClick={onClearFilters}
+            size="small"
+          >
+            {t('common.clear')}
+          </Button>
         </div>
       }
     >
-      <Form layout="vertical" className={styles.searchForm}>
-        <Row gutter={[24, 0]}>
-          {/* 标题搜索 */}
+      <Form layout="vertical">
+        <Row gutter={16}>
           <Col xs={24} sm={12} md={8}>
-            <Form.Item label="标题">
+            <Form.Item label={t('articles.articleTitle')}>
               <Input
+                name="title"
                 value={filters.title}
-                onChange={handleTitleChange}
-                placeholder="搜索标题关键词..."
+                onChange={handleTextChange}
+                placeholder={t('common.search')}
                 prefix={<SearchOutlined />}
-                allowClear
               />
             </Form.Item>
           </Col>
           
-          {/* 日期搜索 */}
           <Col xs={24} sm={12} md={8}>
-            <Form.Item label="日期">
+            <Form.Item label={t('articles.date')}>
               <DatePicker
                 value={filters.date ? dayjs(filters.date) : null}
                 onChange={handleDateChange}
                 style={{ width: '100%' }}
-                allowClear
+                placeholder={t('common.selectDate')}
               />
             </Form.Item>
           </Col>
           
-          {/* 关键词搜索 */}
           <Col xs={24} sm={12} md={8}>
-            <Form.Item label="关键词">
-              <Input
-                value={filters.keyword}
-                onChange={handleKeywordSearchChange}
-                placeholder="搜索关键词..."
-                prefix={<SearchOutlined />}
-                allowClear
-              />
-            </Form.Item>
-          </Col>
-          
-          {/* 文章分类搜索 */}
-          <Col xs={24} sm={12} md={8}>
-            <Form.Item label="文章分类">
-              <Select
-                value={filters.category}
-                onChange={handleCategoryChange}
-                placeholder="选择分类"
-                style={{ width: '100%' }}
-                allowClear
-              >
-                {Array.isArray(categories) && categories.length > 0 ? (
-                  categories.map((category) => (
-                    <Option key={category} value={category}>
-                      <Tag color="blue">{category}</Tag>
-                    </Option>
-                  ))
-                ) : (
-                  <Option value="" disabled>无可用分类</Option>
-                )}
-              </Select>
-            </Form.Item>
-          </Col>
-          
-          {/* 正文搜索 */}
-          <Col xs={24} sm={12} md={8}>
-            <Form.Item label="正文内容">
-              <Input
-                value={filters.content}
-                onChange={handleContentSearchChange}
-                placeholder="搜索正文内容..."
-                prefix={<SearchOutlined />}
-                allowClear
-              />
-            </Form.Item>
-          </Col>
-          
-          {/* 状态搜索 */}
-          <Col xs={24} sm={12} md={8}>
-            <Form.Item label="状态">
+            <Form.Item label={t('articles.status')}>
               <Select
                 value={filters.status}
-                onChange={handleStatusChange}
-                placeholder="选择状态"
-                style={{ width: '100%' }}
+                onChange={(value) => handleSelectChange(value, 'status')}
+                placeholder={t('common.all')}
                 allowClear
+                style={{ width: '100%' }}
               >
-                {Array.isArray(STATUS_OPTIONS) && STATUS_OPTIONS.length > 0 ? (
-                  STATUS_OPTIONS.map((status) => (
-                    <Option key={status} value={status}>
-                      <Tag color={getStatusColor(status)} style={{ minWidth: '60px', textAlign: 'center' }}>
-                        {status}
-                      </Tag>
-                    </Option>
-                  ))
-                ) : (
-                  <Option value="" disabled>无可用状态</Option>
-                )}
+                {STATUS_OPTIONS.map((status, index) => (
+                  <Option key={status} value={status}>
+                    {t(`articles.${STATUS_KEYS[index]}`)}
+                  </Option>
+                ))}
               </Select>
+            </Form.Item>
+          </Col>
+          
+          <Col xs={24} sm={12} md={8}>
+            <Form.Item label={t('articles.category')}>
+              <Select
+                value={filters.category}
+                onChange={(value) => handleSelectChange(value, 'category')}
+                placeholder={t('common.selectCategory')}
+                allowClear
+                style={{ width: '100%' }}
+              >
+                {categories.map(category => (
+                  <Option key={category} value={category}>
+                    {category}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+          
+          <Col xs={24} sm={12} md={8}>
+            <Form.Item label={t('articles.keywords')}>
+              <Input
+                name="keyword"
+                value={filters.keyword}
+                onChange={handleTextChange}
+                placeholder={t('common.search')}
+                prefix={<SearchOutlined />}
+              />
+            </Form.Item>
+          </Col>
+          
+          <Col xs={24} sm={12} md={8}>
+            <Form.Item label={t('articles.content')}>
+              <Input
+                name="content"
+                value={filters.content}
+                onChange={handleTextChange}
+                placeholder={t('common.search')}
+                prefix={<SearchOutlined />}
+              />
             </Form.Item>
           </Col>
         </Row>

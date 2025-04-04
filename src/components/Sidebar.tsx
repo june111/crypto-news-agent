@@ -19,6 +19,8 @@ import {
   MenuUnfoldOutlined
 } from '@ant-design/icons';
 import { colors } from '@/styles/theme';
+import LanguageSwitcher from './LanguageSwitcher';
+import useI18n from '@/hooks/useI18n';
 
 const { Sider } = Layout;
 
@@ -31,11 +33,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
   const router = useRouter();
   const pathname = usePathname();
   const { token } = theme.useToken();
+  const { t } = useI18n();
   
   // 管理员信息
   const adminInfo = {
     name: '张文强',
-    role: '系统管理员',
+    role: t('common.admin'),
   };
   
   // 获取当前选中菜单项的key
@@ -111,15 +114,18 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
         {collapsed ? (
           <span style={{ color: token.colorPrimary, fontSize: '24px', fontWeight: 'bold' }}>CN</span>
         ) : (
-          <span style={{ color: token.colorPrimary, fontSize: '18px', fontWeight: 'bold' }}>Crypto News</span>
+          <span style={{ color: token.colorPrimary, fontSize: '18px', fontWeight: 'bold' }}>{t('common.cryptoNews')}</span>
         )}
         
-        <Button 
-          type="text"
-          icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-          onClick={toggleCollapsed}
-          style={{ fontSize: '16px' }}
-        />
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <LanguageSwitcher />
+          <Button 
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={toggleCollapsed}
+            style={{ fontSize: '16px' }}
+          />
+        </div>
       </div>
       
       {/* 导航菜单 */}
@@ -134,24 +140,24 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
           {
             key: 'content-group',
             type: 'group',
-            label: '内容管理',
+            label: t('sidebar.contentManagement'),
             children: [
               {
                 key: 'hot-topics',
                 icon: <FireOutlined />,
-                label: '热点列表',
+                label: t('sidebar.hotTopics'),
                 onClick: () => handleMenuClick('hot-topics'),
               },
               {
                 key: 'templates',
                 icon: <FormOutlined />,
-                label: '模板列表',
+                label: t('sidebar.templates'),
                 onClick: () => handleMenuClick('templates'),
               },
               {
                 key: 'articles',
                 icon: <FileTextOutlined />,
-                label: '文章列表',
+                label: t('sidebar.articles'),
                 onClick: () => handleMenuClick('articles'),
               },
             ],
@@ -159,12 +165,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
           {
             key: 'system-group',
             type: 'group',
-            label: '系统管理',
+            label: t('sidebar.systemManagement'),
             children: [
               {
                 key: 'ai-tasks',
                 icon: <RocketOutlined />,
-                label: 'AI任务列表',
+                label: t('sidebar.aiTasks'),
                 onClick: () => handleMenuClick('ai-tasks'),
               },
             ],
@@ -194,7 +200,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
               <div style={{ fontSize: '12px', color: token.colorTextSecondary }}>{adminInfo.role}</div>
             </div>
             
-            <Tooltip title="退出登录">
+            <Tooltip title={t('sidebar.logout')}>
               <Button 
                 type="text" 
                 size="small"
@@ -210,7 +216,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
             textAlign: 'center',
             background: colors.backgroundLight,
           }}>
-            <Tooltip title="退出登录" placement="right">
+            <Tooltip title={t('sidebar.logout')} placement="right">
               <Button 
                 type="text" 
                 icon={<LogoutOutlined />} 

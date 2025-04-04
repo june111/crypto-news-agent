@@ -17,7 +17,10 @@ export default function LoadingScreen({ tip }: LoadingScreenProps) {
       alignItems: 'center', 
       height: '100vh' 
     }}>
-      <Spin size="large" tip={tip} />
+      <div>
+        <Spin size="large" />
+        <div style={{ marginTop: '8px', textAlign: 'center' }}>{tip}</div>
+      </div>
     </div>
   );
 } 

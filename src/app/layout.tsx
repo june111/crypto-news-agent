@@ -2,7 +2,9 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
+import enUS from "antd/locale/en_US";
 import Script from 'next/script';
+import { getLocale } from '@/lib/i18n';
 
 export const metadata: Metadata = {
   title: "加密货币新闻管理系统",
@@ -14,8 +16,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // 如果是服务器端渲染，默认使用中文
+  const locale = typeof window !== 'undefined' ? getLocale() : 'zh';
+  const antLocale = locale === 'en' ? enUS : zhCN;
+  
   return (
-    <html lang="zh-CN">
+    <html lang={locale === 'en' ? 'en' : 'zh-CN'}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="light" />
@@ -29,12 +35,12 @@ export default function RootLayout({
       </head>
       <body className="font-inter">
         <ConfigProvider
-          locale={zhCN}
+          locale={antLocale}
           theme={{
             token: {
-              colorPrimary: '#065E7C',
-              colorLink: '#065E7C',
-              colorLinkHover: '#03456B',
+              colorPrimary: '#1890ff',
+              colorLink: '#1890ff',
+              colorLinkHover: '#40a9ff',
               borderRadius: 4
             }
           }}

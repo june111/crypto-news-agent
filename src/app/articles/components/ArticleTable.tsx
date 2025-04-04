@@ -26,6 +26,7 @@ import {
 
 import styles from '../articles.module.css';
 import { Article, ArticleStatus } from '@/types/article';
+import useI18n from '@/hooks/useI18n';
 
 // 获取状态对应的颜色
 const getStatusColor = (status: ArticleStatus) => {
@@ -43,6 +44,16 @@ const getStatusColor = (status: ArticleStatus) => {
     default:
       return 'default';
   }
+};
+
+// 状态与国际化键值映射
+const STATUS_KEYS = {
+  '草稿': 'draft',
+  '待审核': 'pending',
+  '已发布': 'published',
+  '不过审': 'rejected',
+  '发布失败': 'failed',
+  '已下架': 'unpublished'
 };
 
 // 渲染关键词标签
@@ -95,11 +106,12 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
   onResend,
   onTakeDown
 }) => {
+  const { t } = useI18n();
   
   // 表格列定义
   const columns: ColumnsType<Article> = [
     {
-      title: '更新时间',
+      title: t('articles.updatedAt'),
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 160,
@@ -129,7 +141,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
         });
         
         return (
-          <Tooltip title={`最后更新: ${timeString}`}>
+          <Tooltip title={`${t('articles.lastUpdate')}: ${timeString}`}>
             <span>
               <CalendarOutlined style={{ marginRight: 4, opacity: 0.5 }} />
               {formattedDate} {formattedTime}
@@ -139,7 +151,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
       },
     },
     {
-      title: '标题',
+      title: t('articles.articleTitle'),
       dataIndex: 'title',
       key: 'title',
       width: 250,
@@ -155,7 +167,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
       ),
     },
     {
-      title: '封面图',
+      title: t('articles.coverImage'),
       dataIndex: 'coverImage',
       key: 'coverImage',
       width: 100,
@@ -170,7 +182,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
               alignItems: 'center', 
               justifyContent: 'center' 
             }}>
-              <span style={{ color: '#999', fontSize: '12px' }}>无封面</span>
+              <span style={{ color: '#999', fontSize: '12px' }}>{t('articles.noCover')}</span>
             </div>
           );
         }
@@ -180,13 +192,13 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
           <div className={styles.tableImage}>
             <Image 
               src={coverImage}
-              alt="文章封面"
+              alt={t('articles.coverImage')}
               width={80}
               height={60}
               style={{ objectFit: 'cover', borderRadius: '4px' }}
               preview={{
                 maskClassName: styles.imageMask,
-                mask: <div><EyeOutlined /> 预览</div>
+                mask: <div><EyeOutlined /> {t('common.preview')}</div>
               }}
             />
           </div>
@@ -194,14 +206,14 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
       },
     },
     {
-      title: '关键词',
+      title: t('articles.keywords'),
       dataIndex: 'keywords',
       key: 'keywords',
       width: 180,
       render: renderKeywordTags,
     },
     {
-      title: '文章分类',
+      title: t('articles.category'),
       dataIndex: 'category',
       key: 'category',
       width: 100,
@@ -210,21 +222,27 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
       ),
     },
     {
-      title: '状态',
+      title: t('articles.status'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
       render: (status: ArticleStatus) => (
-        <Tag 
-          color={getStatusColor(status)}
-          className={styles.statusTag}
-        >
-          {status}
+        <Tag color={getStatusColor(status)}>
+          {t(`articles.${STATUS_KEYS[status]}`)}
         </Tag>
       ),
+      filters: [
+        { text: t('articles.draft'), value: '草稿' },
+        { text: t('articles.pending'), value: '待审核' },
+        { text: t('articles.published'), value: '已发布' },
+        { text: t('articles.rejected'), value: '不过审' },
+        { text: t('articles.failed'), value: '发布失败' },
+        { text: t('articles.unpublished'), value: '已下架' }
+      ],
+      onFilter: (value, record) => record.status === value
     },
     {
-      title: '操作',
+      title: t('articles.actions'),
       key: 'actions',
       width: 320,
       fixed: 'right',
@@ -239,15 +257,15 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
               onClick={() => onEdit(record.id)}
               className={styles.tableActionButton}
             >
-              编辑
+              {t('common.edit')}
             </Button>
             
             <Popconfirm
-              title="确认删除"
-              description={`确定要删除此文章吗？此操作无法撤销。`}
+              title={t('common.confirmDelete')}
+              description={t('articles.deleteConfirm')}
               onConfirm={() => onDelete(record.id)}
-              okText="确认删除"
-              cancelText="取消"
+              okText={t('common.confirmDelete')}
+              cancelText={t('common.cancel')}
               okButtonProps={{ danger: true }}
             >
               <Button 
@@ -256,7 +274,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
                 icon={<DeleteOutlined />}
                 className={styles.tableActionButton}
               >
-                删除
+                {t('common.delete')}
               </Button>
             </Popconfirm>
             
@@ -268,17 +286,17 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
                 onClick={() => onReview(record.id)}
                 className={styles.tableActionButton}
               >
-                审核
+                {t('articles.review')}
               </Button>
             )}
             
             {record.status === '已发布' && (
               <Popconfirm
-                title="确认下架"
-                description="确定要下架此文章吗？下架后将不再对用户展示"
+                title={t('articles.unpublished')}
+                description={t('common.confirmAction')}
                 onConfirm={() => onTakeDown(record.id)}
-                okText="确认下架"
-                cancelText="取消"
+                okText={t('common.confirm')}
+                cancelText={t('common.cancel')}
               >
                 <Button 
                   size="small"
@@ -286,7 +304,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
                   icon={<CloseOutlined />}
                   className={styles.tableActionButton}
                 >
-                  下架
+                  {t('articles.unpublished')}
                 </Button>
               </Popconfirm>
             )}
@@ -299,7 +317,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
                 onClick={() => onResend(record.id)}
                 className={styles.tableActionButton}
               >
-                重发
+                {t('common.resend')}
               </Button>
             )}
           </Space>
@@ -324,7 +342,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
             defaultPageSize: 10,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50'],
-            showTotal: (total) => `共 ${total} 条数据`,
+            showTotal: (total) => `${t('common.total')} ${total} ${t('articles.title')}`,
           }}
           scroll={{ x: 1500 }}
           size="middle"
@@ -334,7 +352,9 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
                   <span>
-                    {Array.isArray(articles) && articles.length === 0 ? '暂无文章，请创建新文章' : '没有找到匹配的文章'}
+                    {Array.isArray(articles) && articles.length === 0 ? 
+                      t('articles.noArticles') : 
+                      t('articles.noMatchingArticles')}
                   </span>
                 }
                 className={styles.tableEmpty}
@@ -345,7 +365,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
                     icon={<PlusOutlined />} 
                     onClick={() => window.location.href = '/articles/edit/new'}
                   >
-                    创建第一篇文章
+                    {t('articles.createFirstArticle')}
                   </Button>
                 )}
               </Empty>

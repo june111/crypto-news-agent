@@ -9,6 +9,7 @@ import {
   LineChartOutlined
 } from '@ant-design/icons';
 import { TRENDING_THRESHOLD } from '../constants';
+import useI18n from '@/hooks/useI18n';
 
 interface StatsProps {
   statistics: {
@@ -21,6 +22,7 @@ interface StatsProps {
 
 const StatisticsCards: React.FC<StatsProps> = ({ statistics }) => {
   const trendingThreshold = statistics.trendingThreshold || TRENDING_THRESHOLD; // 使用导入的常量作为默认值
+  const { t } = useI18n();
   
   // 计算百分比
   const trendingPercentage = statistics.todayTotal > 0 
@@ -32,7 +34,6 @@ const StatisticsCards: React.FC<StatsProps> = ({ statistics }) => {
       <Col xs={24} sm={12} md={8}>
         <Card 
           hoverable 
-          variant="borderless"
           style={{ 
             borderRadius: '8px',
             overflow: 'hidden',
@@ -44,7 +45,7 @@ const StatisticsCards: React.FC<StatsProps> = ({ statistics }) => {
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <CalendarOutlined style={{ color: '#722ed1' }} />
-                <span>当天新增热点</span>
+                <span>{t('hotTopics.todayNewTopics')}</span>
               </div>
             }
             value={statistics.todayTotal} 
@@ -60,7 +61,6 @@ const StatisticsCards: React.FC<StatsProps> = ({ statistics }) => {
       <Col xs={24} sm={12} md={8}>
         <Card 
           hoverable 
-          variant="borderless"
           style={{ 
             borderRadius: '8px',
             overflow: 'hidden',
@@ -72,7 +72,7 @@ const StatisticsCards: React.FC<StatsProps> = ({ statistics }) => {
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FireOutlined style={{ color: '#f5222d' }} />
-                <span>当日热门话题</span>
+                <span>{t('hotTopics.todayTrendingTopics')}</span>
               </div>
             }
             value={statistics.todayTrending} 
@@ -105,7 +105,7 @@ const StatisticsCards: React.FC<StatsProps> = ({ statistics }) => {
             }}
           >
             <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.45)' }}>
-              热门标准: {trendingThreshold.toLocaleString()}+
+              {t('hotTopics.trendingStandard')}: {trendingThreshold.toLocaleString()}+
             </div>
           </div>
         </Card>
@@ -114,7 +114,6 @@ const StatisticsCards: React.FC<StatsProps> = ({ statistics }) => {
       <Col xs={24} sm={12} md={8}>
         <Card 
           hoverable 
-          variant="borderless"
           style={{ 
             borderRadius: '8px',
             overflow: 'hidden',
@@ -126,7 +125,7 @@ const StatisticsCards: React.FC<StatsProps> = ({ statistics }) => {
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <RiseOutlined style={{ color: '#52c41a' }} />
-                <span>当日最高搜索量</span>
+                <span>{t('hotTopics.todayMaxVolume')}</span>
               </div>
             }
             value={statistics.todayMaxVolume} 
@@ -145,7 +144,7 @@ const StatisticsCards: React.FC<StatsProps> = ({ statistics }) => {
             }}
           >
             <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.45)' }}>
-              相当于热门标准的{' '}
+              {t('hotTopics.equivalentToStandard')}{' '}
               <span style={{ 
                 fontWeight: 'bold', 
                 color: statistics.todayMaxVolume >= trendingThreshold ? '#52c41a' : 'inherit' 

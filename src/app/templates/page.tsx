@@ -38,6 +38,7 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import { useRouter } from 'next/navigation';
 import styles from './templates.module.css';
+import useI18n from '@/hooks/useI18n';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -57,6 +58,7 @@ interface Template {
 
 const TemplatesPage = () => {
   const router = useRouter();
+  const { t, locale } = useI18n();
 
   // 状态定义
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -76,7 +78,7 @@ const TemplatesPage = () => {
         const response = await fetch('/api/templates');
         
         if (!response.ok) {
-          throw new Error('获取模板列表失败');
+          throw new Error(t('templates.fetchFailed'));
         }
         
         const data = await response.json();
@@ -84,7 +86,7 @@ const TemplatesPage = () => {
         setTemplates(data.templates || []);
       } catch (error) {
         console.error('获取模板失败:', error);
-        message.error('获取模板列表失败，请稍后重试');
+        message.error(t('templates.fetchFailed'));
       } finally {
         setLoading(false);
       }
@@ -155,16 +157,16 @@ const TemplatesPage = () => {
       });
       
       if (!response.ok) {
-        throw new Error('删除模板失败');
+        throw new Error(t('templates.deleteFailed'));
       }
       
       // 本地更新UI，不需要重新获取数据
       setTemplates(prevTemplates => prevTemplates.filter((t: Template) => t.id !== id));
       
-      message.success(`已成功删除模板"${name}"`);
+      message.success(`${t('common.success')}${t('templates.deleted')}"${name}"`);
     } catch (error) {
       console.error('删除模板失败:', error);
-      message.error('删除模板失败，请稍后重试');
+      message.error(t('templates.deleteFailed'));
     } finally {
       setLoading(false);
     }
@@ -240,7 +242,7 @@ const TemplatesPage = () => {
           className={styles.templateCard}
           onClick={() => router.push(`/templates/edit/${template.id}`)}
           actions={[
-            <Tooltip title="编辑模板" key="edit">
+            <Tooltip title={t('common.edit')} key="edit">
               <Button 
                 type="text" 
                 icon={<EditOutlined />}
@@ -250,16 +252,16 @@ const TemplatesPage = () => {
                 }}
               />
             </Tooltip>,
-            <Tooltip title="删除模板" key="delete">
+            <Tooltip title={t('common.delete')} key="delete">
               <Popconfirm
-                title="确认删除"
-                description={`确定要删除模板"${template.name}"吗？此操作无法撤销。`}
+                title={t('common.confirmDelete')}
+                description={`${t('templates.deleteConfirm')}"${template.name}"？${t('templates.deleteWarning')}`}
                 onConfirm={(e) => {
                   e?.stopPropagation(); // 阻止事件冒泡
                   handleDeleteTemplate(template.id, template.name);
                 }}
-                okText="确认删除"
-                cancelText="取消"
+                okText={t('common.confirm')}
+                cancelText={t('common.cancel')}
                 okButtonProps={{ danger: true }}
               >
                 <Button 
@@ -283,13 +285,13 @@ const TemplatesPage = () => {
               </Title>
               <div className={styles.cardMeta}>
                 <Text type="secondary">
-                  <CalendarOutlined /> {new Date(template.created_at).toLocaleString('zh-CN', { 
+                  <CalendarOutlined /> {new Date(template.created_at).toLocaleString(locale === 'en' ? 'en-US' : 'zh-CN', { 
                     year: 'numeric', 
                     month: '2-digit', 
                     day: '2-digit' 
                   })}
                 </Text>
-                <Tooltip title={`使用次数: ${template.usage_count}`}>
+                <Tooltip title={`${t('templates.usageCount')}: ${template.usage_count}`}>
                   <Text>
                     <FireOutlined style={{ color: '#ff4d4f' }} /> <strong>{template.usage_count}</strong>
                   </Text>
@@ -314,9 +316,9 @@ const TemplatesPage = () => {
       <div style={{ padding: '24px' }}>
         <div className={styles.pageHeader}>
           <div>
-            <Title level={2} style={{ marginBottom: '8px' }}>文章模板库</Title>
+            <Title level={2} style={{ marginBottom: '8px' }}>{t('templates.title')}</Title>
             <Text type="secondary" style={{ fontSize: '16px' }}>
-              管理和使用模板快速创建高质量文章
+              {t('templates.description')}
             </Text>
           </div>
           
@@ -327,7 +329,7 @@ const TemplatesPage = () => {
             onClick={handleAddTemplate}
             className={styles.createButton}
           >
-            创建新模板
+            {t('templates.createTemplate')}
           </Button>
         </div>
         
@@ -337,7 +339,7 @@ const TemplatesPage = () => {
             <Col xs={24} sm={8}>
               <Card className={styles.statCard}>
                 <Statistic 
-                  title="模板总数" 
+                  title={t('templates.totalTemplates')} 
                   value={statistics.totalTemplates} 
                   prefix={<FileTextOutlined />} 
                   valueStyle={{ color: '#1890ff' }}
@@ -348,7 +350,7 @@ const TemplatesPage = () => {
             <Col xs={24} sm={8}>
               <Card className={styles.statCard}>
                 <Statistic 
-                  title="分类数量" 
+                  title={t('templates.totalCategories')} 
                   value={statistics.categoriesCount} 
                   prefix={<AppstoreOutlined />}
                   valueStyle={{ color: '#52c41a' }}
@@ -359,7 +361,7 @@ const TemplatesPage = () => {
             <Col xs={24} sm={8}>
               <Card className={styles.statCard}>
                 <Statistic 
-                  title="总使用次数" 
+                  title={t('templates.totalUsage')} 
                   value={statistics.totalUsage} 
                   prefix={<RiseOutlined />}
                   valueStyle={{ color: '#fa541c' }}
@@ -376,11 +378,11 @@ const TemplatesPage = () => {
           <Form layout="vertical" className={styles.searchForm}>
             <Row gutter={24} align="middle">
               <Col xs={24} md={10}>
-                <Form.Item label="模板名称" style={{ marginBottom: '12px' }}>
+                <Form.Item label={t('templates.templateName')} style={{ marginBottom: '12px' }}>
                   <Input
                     value={searchName}
                     onChange={handleNameSearch}
-                    placeholder="搜索模板名称..."
+                    placeholder={t('templates.searchPlaceholder')}
                     prefix={<SearchOutlined />}
                     allowClear
                     style={{ borderRadius: '6px' }}
@@ -389,11 +391,11 @@ const TemplatesPage = () => {
               </Col>
               
               <Col xs={24} md={10}>
-                <Form.Item label="文章分类" style={{ marginBottom: '12px' }}>
+                <Form.Item label={t('templates.category')}>
                   <Select
                     value={searchCategory}
                     onChange={handleCategorySearch}
-                    placeholder="选择文章分类"
+                    placeholder={t('common.selectCategory')}
                     style={{ width: '100%', borderRadius: '6px' }}
                     allowClear
                     showSearch
@@ -408,7 +410,7 @@ const TemplatesPage = () => {
                         </Option>
                       ))
                     ) : (
-                      <Option value="" disabled>无可用分类</Option>
+                      <Option value="" disabled>{t('templates.noCategories')}</Option>
                     )}
                   </Select>
                 </Form.Item>
@@ -421,7 +423,7 @@ const TemplatesPage = () => {
                     onClick={handleClearSearch}
                     style={{ borderRadius: '6px', width: '100%' }}
                   >
-                    清空筛选
+                    {t('common.clear')}
                   </Button>
                 </Form.Item>
               </Col>
@@ -433,9 +435,9 @@ const TemplatesPage = () => {
         {!loading && Array.isArray(sortedTemplates) && sortedTemplates.length > 0 && (
           <div className={styles.filterResultInfo}>
             <Text>
-              共找到 <Text strong>{sortedTemplates.length}</Text> 个符合条件的模板
-              {searchName && <span>，关键词：<Tag color="blue">{searchName}</Tag></span>}
-              {searchCategory && <span>，分类：<Tag color={getCategoryColor(searchCategory)}>{searchCategory}</Tag></span>}
+              {t('common.total')} <Text strong>{sortedTemplates.length}</Text> {t('templates.matchingTemplates')}
+              {searchName && <span>，{t('templates.keyword')}：<Tag color="blue">{searchName}</Tag></span>}
+              {searchCategory && <span>，{t('templates.category')}：<Tag color={getCategoryColor(searchCategory)}>{searchCategory}</Tag></span>}
             </Text>
           </div>
         )}
@@ -464,13 +466,13 @@ const TemplatesPage = () => {
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
               <span>
-                {searchName || searchCategory ? '没有找到匹配的模板' : '暂无模板，请创建新模板'}
+                {searchName || searchCategory ? t('templates.noSearchResults') : t('templates.noTemplates')}
               </span>
             }
             className={styles.emptyState}
           >
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAddTemplate}>
-              创建第一个模板
+              {t('templates.createFirstTemplate')}
             </Button>
           </Empty>
         )}

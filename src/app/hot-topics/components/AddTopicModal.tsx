@@ -17,6 +17,7 @@ import {
   FireOutlined, 
   LinkOutlined
 } from '@ant-design/icons';
+import useI18n from '@/hooks/useI18n';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -55,6 +56,7 @@ const AddTopicModal: React.FC<AddTopicModalProps> = ({
   const [customSource, setCustomSource] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
   const [form] = Form.useForm();
+  const { t } = useI18n();
   
   // 处理关键词变化
   const handleKeywordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,11 +127,11 @@ const AddTopicModal: React.FC<AddTopicModalProps> = ({
   
   return (
     <Modal
-      title="添加热点话题"
+      title={t('hotTopics.addTopicTitle')}
       open={visible}
       onCancel={saving ? undefined : onClose}
-      okText={saving ? "保存中..." : "保存"}
-      cancelText="取消"
+      okText={saving ? t('hotTopics.saving') : t('common.save')}
+      cancelText={t('common.cancel')}
       confirmLoading={saving}
       onOk={handleSaveClick}
       okButtonProps={{ 
@@ -140,13 +142,7 @@ const AddTopicModal: React.FC<AddTopicModalProps> = ({
       maskClosable={!saving}
       destroyOnClose
       width={500}
-      styles={{ 
-        body: { 
-          padding: '20px 24px',
-          maxHeight: '70vh',
-          overflowY: 'auto'
-        }
-      }}
+      style={{ top: 20 }}
       className="add-topic-modal"
     >
       <Form
@@ -162,18 +158,18 @@ const AddTopicModal: React.FC<AddTopicModalProps> = ({
         <Form.Item 
           label={
             <Space style={{ marginBottom: 4 }}>
-              <Text strong>关键词</Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>(必填)</Text>
+              <Text strong>{t('hotTopics.keywordLabel')}</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>({t('hotTopics.required')})</Text>
             </Space>
           }
           required
           validateStatus={!keyword.trim() && keyword !== '' ? 'error' : ''}
-          help={!keyword.trim() && keyword !== '' ? '关键词不能为空' : null}
+          help={!keyword.trim() && keyword !== '' ? t('hotTopics.keywordRequired') : null}
         >
           <Input 
             value={keyword} 
             onChange={handleKeywordChange}
-            placeholder="输入热点关键词，如'比特币突破70000美元'"
+            placeholder={t('hotTopics.keywordPlaceholder')}
             maxLength={50}
             showCount
             autoFocus
@@ -186,12 +182,12 @@ const AddTopicModal: React.FC<AddTopicModalProps> = ({
           label={
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
               <Space align="center">
-                <Text strong>搜索量</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>(必填)</Text>
+                <Text strong>{t('hotTopics.volumeLabel')}</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>({t('hotTopics.required')})</Text>
               </Space>
               {volume >= trendingThreshold && (
                 <Tag color="red" icon={<FireOutlined />} style={{ marginLeft: 'auto' }}>
-                  热门
+                  {t('hotTopics.hotLabel')}
                 </Tag>
               )}
             </div>
@@ -201,28 +197,28 @@ const AddTopicModal: React.FC<AddTopicModalProps> = ({
           <InputNumber 
             value={volume === 0 ? '' : volume} 
             onChange={handleVolumeChange}
-            placeholder="输入搜索量..."
+            placeholder={t('hotTopics.volumePlaceholder')}
             min={0}
             style={{ width: '100%', borderRadius: '6px' }}
             size="large"
-            addonAfter="次搜索"
+            addonAfter={t('hotTopics.searchTimes')}
           />
           <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 12 }}>
-            搜索量超过{trendingThreshold.toLocaleString()}次将自动标记为热门话题
+            {t('hotTopics.volumeThresholdTip').replace('{threshold}', trendingThreshold.toLocaleString())}
           </Text>
         </Form.Item>
         
         <Form.Item 
           label={
             <Space style={{ marginBottom: 4 }}>
-              <Text strong>来源</Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>(选填)</Text>
+              <Text strong>{t('hotTopics.sourceLabel')}</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>({t('hotTopics.optional')})</Text>
             </Space>
           }
         >
           <Select
             style={{ width: '100%', borderRadius: '6px' }}
-            placeholder="选择或输入热点来源..."
+            placeholder={t('hotTopics.sourcePlaceholder')}
             value={source}
             onChange={handleSourceChange}
             showSearch
@@ -245,7 +241,7 @@ const AddTopicModal: React.FC<AddTopicModalProps> = ({
                       style={{ width: '100%', textAlign: 'left' }}
                       onClick={handleAddSource}
                     >
-                      添加 "{customSource}"
+                      {t('hotTopics.addSourcePrefix')} "{customSource}"
                     </Button>
                   </div>
                 )}

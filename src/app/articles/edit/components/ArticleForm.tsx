@@ -562,14 +562,13 @@ export default function ArticleForm({
       <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <SectionTitle level={2}>编辑文章</SectionTitle>
-          <Button 
-            type="default" 
-            icon={<ReloadOutlined />} 
-            onClick={handleRefreshData} 
-            loading={isRefreshing}
-          >
-            刷新数据
-          </Button>
+          {React.createElement(Button, {
+            type: "default",
+            icon: <ReloadOutlined />,
+            onClick: handleRefreshData,
+            loading: isRefreshing,
+            children: "刷新数据"
+          })}
         </div>
         
         <Card style={{ marginBottom: '24px' }}>
@@ -637,17 +636,16 @@ export default function ArticleForm({
               tooltip="选择文章所属的分类"
               error={errors.category}
             >
-              <Select
-                placeholder="请选择文章分类"
-                value={articleData.category}
-                onChange={value => handleChange('category', value)}
-                style={{ width: '100%' }}
-                disabled={articleData.status === 'published'}
-              >
-                {ARTICLE_CATEGORIES.map(category => (
+              {React.createElement(Select, {
+                placeholder: "请选择文章分类",
+                value: articleData.category,
+                onChange: (value) => handleChange('category', value),
+                style: { width: '100%' },
+                disabled: articleData.status === 'published',
+                children: ARTICLE_CATEGORIES.map(category => (
                   <Option key={category} value={category}>{category}</Option>
-                ))}
-              </Select>
+                ))
+              })}
             </FormField>
             
             <FormField
