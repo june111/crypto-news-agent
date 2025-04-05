@@ -148,11 +148,12 @@ export default function EditArticlePage() {
           // 如果不是有效的UUID，但是数字格式，尝试查找对应的热点话题ID
           if (/^\d+$/.test(validatedHotTopicId)) {
             console.warn('热点话题ID不是有效的UUID格式，而是一个数字:', validatedHotTopicId);
-            // 这里可以选择抛出错误，或者将其设为null
+            // 抛出错误，显示提示
             throw new Error(`热点话题ID必须是有效的UUID格式，而不是简单的数字"${validatedHotTopicId}"`);
           }
-          console.warn('热点话题ID不是有效的UUID格式，将设为null', validatedHotTopicId);
-          validatedHotTopicId = null;
+          // 对于其他无效的UUID格式，也抛出错误
+          console.warn('热点话题ID不是有效的UUID格式:', validatedHotTopicId);
+          throw new Error(`热点话题ID"${validatedHotTopicId}"不是有效的UUID格式`);
         }
       }
       
@@ -273,11 +274,12 @@ export default function EditArticlePage() {
           // 如果不是有效的UUID，但是数字格式，尝试查找对应的热点话题ID
           if (/^\d+$/.test(validatedHotTopicId)) {
             console.warn('热点话题ID不是有效的UUID格式，而是一个数字:', validatedHotTopicId);
-            // 这里可以选择抛出错误，或者将其设为null
+            // 抛出错误，显示提示
             throw new Error(`热点话题ID必须是有效的UUID格式，而不是简单的数字"${validatedHotTopicId}"`);
           }
-          console.warn('热点话题ID不是有效的UUID格式，将设为null', validatedHotTopicId);
-          validatedHotTopicId = null;
+          // 对于其他无效的UUID格式，也抛出错误
+          console.warn('热点话题ID不是有效的UUID格式:', validatedHotTopicId);
+          throw new Error(`热点话题ID"${validatedHotTopicId}"不是有效的UUID格式`);
         }
       }
       

@@ -69,4 +69,22 @@ export {
 };
 
 // 导出仓库
-export default repositories; 
+export default repositories;
+
+/**
+ * 数据库模块导出索引
+ * 提供统一的数据库访问入口点
+ */
+
+// 配置导出
+export * from './config';
+
+// 客户端导出
+export * from './client';
+
+// 数据模型导出 (如果存在)
+// export * from './schema';
+
+// 简化导出
+import { supabase } from './client';
+export { supabase }; 

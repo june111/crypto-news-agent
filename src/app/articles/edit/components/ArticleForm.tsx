@@ -8,7 +8,6 @@ import RichTextEditor from './RichTextEditor';
 import ImageUploader from './ImageUploader';
 import TagDisplay from './TagDisplay';
 import SectionTitle from './SectionTitle';
-import FullscreenLoading from './FullscreenLoading';
 import { ARTICLE_CATEGORIES } from '@/types/article';
 import dayjs from 'dayjs';
 
@@ -557,7 +556,6 @@ export default function ArticleForm({
   return (
     <>
       {contextHolder}
-      {isLoading && <FullscreenLoading visible={isLoading} text="保存中..." />}
       
       <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>

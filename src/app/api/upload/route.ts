@@ -18,7 +18,6 @@ const LOCAL_STORAGE_PATH = path.join(process.cwd(), 'public', 'uploads');
  * 获取Supabase客户端
  */
 const getSupabase = () => {
-  // 不再使用模拟模式检查，直接使用真实客户端
   try {
     const { createClient } = require('@supabase/supabase-js');
     
@@ -27,8 +26,7 @@ const getSupabase = () => {
     const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
     
     if (!supabaseUrl || !supabaseKey) {
-      console.error('Supabase配置缺失: URL或Key未设置');
-      return null;
+      throw new Error('Supabase配置缺失: URL或Key未设置');
     }
     
     console.log(`使用Supabase配置: URL=${supabaseUrl}`);
@@ -36,8 +34,7 @@ const getSupabase = () => {
     
     return createClient(supabaseUrl, supabaseKey);
   } catch (err) {
-    console.error('Supabase客户端创建失败:', err);
-    return null;
+    throw new Error(`Supabase客户端创建失败: ${err instanceof Error ? err.message : '未知错误'}`);
   }
 };
 
@@ -219,65 +216,59 @@ async function ensureStorageBucket(supabase: any, requestId: string) {
  * 保存文件到Supabase存储
  */
 async function saveFileToSupabase(file: File, fileName: string, requestId: string) {
-  try {
-    // 创建Supabase客户端
-    const supabase = getSupabase();
-    if (!supabase) {
-      throw new Error('Supabase客户端创建失败，请检查环境变量配置');
-    }
-    
-    console.log(`[${requestId}] 上传文件到Supabase存储...`);
-    
-    // 确保存储桶存在
-    const bucketExists = await ensureStorageBucket(supabase, requestId);
-    if (!bucketExists) {
-      throw new Error(`存储桶 ${BUCKET_NAME} 不可用，请检查Supabase存储配置和权限`);
-    }
-    
-    // 上传文件
-    const buffer = await file.arrayBuffer();
-    const { data, error } = await supabase
-      .storage
-      .from(BUCKET_NAME)
-      .upload(fileName, buffer, {
-        contentType: file.type,
-        cacheControl: '3600',
-        upsert: false
-      });
-    
-    if (error) {
-      console.error(`[${requestId}] Supabase上传错误:`, error);
-      throw error;
-    }
-    
-    // 获取文件的公共URL
-    const { data: { publicUrl } } = supabase
-      .storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(fileName);
-    
-    // 创建图片记录
-    const imageData = {
-      id: uuidv4(),
-      file_name: fileName,
-      original_name: file.name,
-      mime_type: file.type,
-      size: file.size,
-      url: publicUrl,
-      storage_path: data.path,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    // 保存到数据库
-    await saveImageToDatabase(supabase, imageData, requestId);
-    
-    // 即使数据库保存失败，仍然返回URL
-    return publicUrl;
-  } catch (err) {
-    console.error('上传文件到Supabase失败:', err);
-    return null;
+  // 创建Supabase客户端
+  const supabase = getSupabase();
+  
+  console.log(`[${requestId}] 上传文件到Supabase存储...`);
+  
+  // 确保存储桶存在
+  const bucketExists = await ensureStorageBucket(supabase, requestId);
+  if (!bucketExists) {
+    throw new Error(`存储桶 ${BUCKET_NAME} 不可用，请检查Supabase存储配置和权限`);
   }
+  
+  // 上传文件
+  const buffer = await file.arrayBuffer();
+  const { data, error } = await supabase
+    .storage
+    .from(BUCKET_NAME)
+    .upload(fileName, buffer, {
+      contentType: file.type,
+      cacheControl: '3600',
+      upsert: false
+    });
+  
+  if (error) {
+    console.error(`[${requestId}] Supabase上传错误:`, error);
+    throw error;
+  }
+  
+  // 获取文件的公共URL
+  const { data: { publicUrl } } = supabase
+    .storage
+    .from(BUCKET_NAME)
+    .getPublicUrl(fileName);
+  
+  // 创建图片记录
+  const imageData = {
+    id: uuidv4(),
+    file_name: fileName,
+    original_name: file.name,
+    mime_type: file.type,
+    size: file.size,
+    url: publicUrl,
+    storage_path: data.path,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  
+  // 保存到数据库
+  const dbSaved = await saveImageToDatabase(supabase, imageData, requestId);
+  if (!dbSaved) {
+    console.warn(`[${requestId}] 图片已上传，但数据库记录保存失败`);
+  }
+  
+  return publicUrl;
 }
 
 /**
@@ -297,14 +288,6 @@ export async function POST(request: NextRequest) {
     // 生成请求ID
     const requestId = request.headers.get('x-request-id') || uuidv4();
     console.log(`[${requestId}] 开始处理图片上传请求`);
-    
-    // 检查Supabase配置
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
-    
-    // 日志输出配置状态
-    if (!supabaseUrl) console.warn(`[${requestId}] 未设置Supabase URL`);
-    if (!supabaseKey) console.warn(`[${requestId}] 未设置Supabase Key`);
     
     // 解析multipart表单数据
     const formData = await request.formData();
@@ -330,52 +313,30 @@ export async function POST(request: NextRequest) {
     // 生成唯一文件名
     const fileName = `${uuidv4()}-${file.name.replace(/\s+/g, '_')}`;
     
-    // 确定存储方式
-    const useSupabase = (supabaseUrl && supabaseKey && process.env.MOCK_DB !== 'true');
-    const useLocalStorage = process.env.USE_LOCAL_STORAGE === 'true';
-    
-    let fileUrl = null;
-    let warning = null;
-    let storagePath = null;
-    
-    // 优先尝试Supabase存储
-    if (useSupabase) {
+    try {
+      // 使用Supabase存储
       console.log(`[${requestId}] 使用Supabase存储`);
-      fileUrl = await saveFileToSupabase(file, fileName, requestId);
-      if (fileUrl) {
-        storagePath = `${BUCKET_NAME}/${fileName}`;
-      }
+      const fileUrl = await saveFileToSupabase(file, fileName, requestId);
+      
+      console.log(`[${requestId}] 图片处理完成，URL: ${fileUrl?.substring(0, 20)}...`);
+      
+      return NextResponse.json({
+        url: fileUrl,
+        fileName,
+        size: file.size,
+        storagePath: `${BUCKET_NAME}/${fileName}`,
+        articleId: articleId || null,
+        status: 'success'
+      });
+    } catch (uploadErr) {
+      // Supabase存储失败，返回错误
+      console.error(`[${requestId}] 存储失败:`, uploadErr);
+      return NextResponse.json({ 
+        error: '文件存储失败',
+        message: uploadErr instanceof Error ? uploadErr.message : '上传到Supabase存储服务失败',
+        status: 'error'
+      }, { status: 500 });
     }
-    
-    // 如果Supabase存储失败或未配置，尝试本地存储
-    if (!fileUrl && useLocalStorage) {
-      console.log(`[${requestId}] 使用本地存储`);
-      fileUrl = await saveFileToLocalStorage(file, fileName);
-      if (fileUrl) {
-        storagePath = `local/${fileName}`;
-        warning = '使用本地存储，仅供开发环境使用';
-      }
-    }
-    
-    // 如果所有存储方式都失败，使用数据URL
-    if (!fileUrl) {
-      console.log(`[${requestId}] 所有存储方式失败，使用数据URL`);
-      fileUrl = await generateDataUrl(file);
-      warning = '无法保存到存储服务，使用本地数据URL';
-    }
-    
-    console.log(`[${requestId}] 图片处理完成，URL类型: ${fileUrl?.substring(0, 10)}...`);
-    
-    return NextResponse.json({
-      url: fileUrl,
-      fileName,
-      size: file.size,
-      storagePath,
-      articleId: articleId || null,
-      status: warning ? 'warning' : 'success',
-      ...(warning ? { warning } : {})
-    });
-    
   } catch (err) {
     console.error('图片上传处理错误:', err);
     return NextResponse.json({ 

@@ -8,7 +8,7 @@ import { Article } from '@/types/article';
 import { DifyClient } from '@/lib/services/dify/client';
 
 // 统一使用百度图片链接
-const COVER_IMAGE = "https://img0.baidu.com/it/u=4160253413,3711804954&fm=253&fmt=auto&app=138&f=JPEG?w=708&h=500";
+// const COVER_IMAGE = "https://img0.baidu.com/it/u=4160253413,3711804954&fm=253&fmt=auto&app=138&f=JPEG?w=708&h=500";
 
 // 模拟热点关键词类型定义
 interface HotTopic {
@@ -157,7 +157,7 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
           category: template?.category || '区块链',
           keywords: selectedKeywords,
           summary: `使用Dify AI生成的关于${mainKeyword}的${template?.category || '分析'}文章`,
-          coverImage: COVER_IMAGE,
+          coverImage: '',
           content: content,
           source: 'Dify AI',
           difyWorkflowRunId: workflowResult.workflowRunId,
@@ -303,7 +303,8 @@ const GenerateArticleModal: React.FC<GenerateArticleModalProps> = ({
         {/* Dify参数加载状态 */}
         {difyLoading && (
           <div style={{ textAlign: 'center', margin: '20px 0' }}>
-            <Spin tip="加载Dify参数中..." />
+            <Spin />
+            <div style={{ marginTop: 8 }}>加载Dify参数中...</div>
           </div>
         )}
       </Form>

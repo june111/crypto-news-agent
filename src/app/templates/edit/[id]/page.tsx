@@ -12,7 +12,7 @@ import fetchWithCache, { clearCache } from '@/lib/utils/fetchUtils';
 import useI18n from '@/hooks/useI18n';
 
 // 导入CSS模块
-import styles from '../../template.module.css';
+import styles from './template.module.css';
 
 // 单独导入Typography组件
 import Typography from 'antd/lib/typography';
