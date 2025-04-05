@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { Table, Tag, Button, Space } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { Article, ArticleStatus } from '@/types/article';
@@ -15,13 +15,14 @@ interface ArticleListProps {
   onReviewArticle: (id: string) => void;
 }
 
-const ArticleList: React.FC<ArticleListProps> = ({
+// 使用forwardRef包装组件以适应React 19的ref处理方式
+const ArticleList = forwardRef<HTMLDivElement, ArticleListProps>(({
   articles,
   loading,
   onEditArticle,
   onDeleteArticle,
   onReviewArticle
-}) => {
+}, ref) => {
   const { t } = useI18n();
 
   const columns = [
@@ -78,13 +79,18 @@ const ArticleList: React.FC<ArticleListProps> = ({
   ];
 
   return (
-    <Table 
-      columns={columns} 
-      dataSource={articles} 
-      rowKey="id" 
-      loading={loading}
-    />
+    <div ref={ref}>
+      <Table 
+        columns={columns} 
+        dataSource={articles} 
+        rowKey="id" 
+        loading={loading}
+      />
+    </div>
   );
-};
+});
+
+// 设置显示名称
+ArticleList.displayName = 'ArticleList';
 
 export default ArticleList; 

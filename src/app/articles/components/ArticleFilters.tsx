@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { Card, Form, Input, Select, DatePicker, Row, Col, Button } from 'antd';
 import { SearchOutlined, ClearOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -29,12 +29,13 @@ interface ArticleFiltersProps {
 
 const { Option } = Select;
 
-const ArticleFilters: React.FC<ArticleFiltersProps> = ({
+// 使用forwardRef包装组件以适应React 19的ref处理方式
+const ArticleFilters = forwardRef<HTMLDivElement, ArticleFiltersProps>(({
   filters,
   onFilterChange,
   onClearFilters,
   categories
-}) => {
+}, ref) => {
   const { t, locale } = useI18n();
 
   // 处理文本输入变化
@@ -54,110 +55,115 @@ const ArticleFilters: React.FC<ArticleFiltersProps> = ({
   };
 
   return (
-    <Card 
-      className={styles.filtersCard}
-      title={
-        <div className={styles.filterHeader}>
-          <span>{t('common.filter')}</span>
-          <Button 
-            type="link" 
-            icon={<ClearOutlined />} 
-            onClick={onClearFilters}
-            size="small"
-          >
-            {t('common.clear')}
-          </Button>
-        </div>
-      }
-    >
-      <Form layout="vertical">
-        <Row gutter={16}>
-          <Col xs={24} sm={12} md={8}>
-            <Form.Item label={t('articles.articleTitle')}>
-              <Input
-                name="title"
-                value={filters.title}
-                onChange={handleTextChange}
-                placeholder={t('common.search')}
-                prefix={<SearchOutlined />}
-              />
-            </Form.Item>
-          </Col>
-          
-          <Col xs={24} sm={12} md={8}>
-            <Form.Item label={t('articles.date')}>
-              <DatePicker
-                value={filters.date ? dayjs(filters.date) : null}
-                onChange={handleDateChange}
-                style={{ width: '100%' }}
-                placeholder={t('common.selectDate')}
-              />
-            </Form.Item>
-          </Col>
-          
-          <Col xs={24} sm={12} md={8}>
-            <Form.Item label={t('articles.status')}>
-              <Select
-                value={filters.status}
-                onChange={(value) => handleSelectChange(value, 'status')}
-                placeholder={t('common.all')}
-                allowClear
-                style={{ width: '100%' }}
-              >
-                {STATUS_OPTIONS.map((status, index) => (
-                  <Option key={status} value={status}>
-                    {t(`articles.${STATUS_KEYS[status]}`)}
-                  </Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </Col>
-          
-          <Col xs={24} sm={12} md={8}>
-            <Form.Item label={t('articles.category')}>
-              <Select
-                value={filters.category}
-                onChange={(value) => handleSelectChange(value, 'category')}
-                placeholder={t('common.selectCategory')}
-                allowClear
-                style={{ width: '100%' }}
-              >
-                {categories.map(category => (
-                  <Option key={category} value={category}>
-                    {category}
-                  </Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </Col>
-          
-          <Col xs={24} sm={12} md={8}>
-            <Form.Item label={t('articles.keywords')}>
-              <Input
-                name="keyword"
-                value={filters.keyword}
-                onChange={handleTextChange}
-                placeholder={t('common.search')}
-                prefix={<SearchOutlined />}
-              />
-            </Form.Item>
-          </Col>
-          
-          <Col xs={24} sm={12} md={8}>
-            <Form.Item label={t('articles.content')}>
-              <Input
-                name="content"
-                value={filters.content}
-                onChange={handleTextChange}
-                placeholder={t('common.search')}
-                prefix={<SearchOutlined />}
-              />
-            </Form.Item>
-          </Col>
-        </Row>
-      </Form>
-    </Card>
+    <div ref={ref}>
+      <Card 
+        className={styles.filtersCard}
+        title={
+          <div className={styles.filterHeader}>
+            <span>{t('common.filter')}</span>
+            <Button 
+              type="link" 
+              icon={<ClearOutlined />} 
+              onClick={onClearFilters}
+              size="small"
+            >
+              {t('common.clear')}
+            </Button>
+          </div>
+        }
+      >
+        <Form layout="vertical">
+          <Row gutter={16}>
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item label={t('articles.articleTitle')}>
+                <Input
+                  name="title"
+                  value={filters.title}
+                  onChange={handleTextChange}
+                  placeholder={t('common.search')}
+                  prefix={<SearchOutlined />}
+                />
+              </Form.Item>
+            </Col>
+            
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item label={t('articles.date')}>
+                <DatePicker
+                  value={filters.date ? dayjs(filters.date) : null}
+                  onChange={handleDateChange}
+                  style={{ width: '100%' }}
+                  placeholder={t('common.selectDate')}
+                />
+              </Form.Item>
+            </Col>
+            
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item label={t('articles.status')}>
+                <Select
+                  value={filters.status}
+                  onChange={(value) => handleSelectChange(value, 'status')}
+                  placeholder={t('common.all')}
+                  allowClear
+                  style={{ width: '100%' }}
+                >
+                  {STATUS_OPTIONS.map((status, index) => (
+                    <Option key={status} value={status}>
+                      {t(`articles.${STATUS_KEYS[status]}`)}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item label={t('articles.category')}>
+                <Select
+                  value={filters.category}
+                  onChange={(value) => handleSelectChange(value, 'category')}
+                  placeholder={t('common.selectCategory')}
+                  allowClear
+                  style={{ width: '100%' }}
+                >
+                  {categories.map(category => (
+                    <Option key={category} value={category}>
+                      {category}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item label={t('articles.keywords')}>
+                <Input
+                  name="keyword"
+                  value={filters.keyword}
+                  onChange={handleTextChange}
+                  placeholder={t('common.search')}
+                  prefix={<SearchOutlined />}
+                />
+              </Form.Item>
+            </Col>
+            
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item label={t('articles.content')}>
+                <Input
+                  name="content"
+                  value={filters.content}
+                  onChange={handleTextChange}
+                  placeholder={t('common.search')}
+                  prefix={<SearchOutlined />}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Card>
+    </div>
   );
-};
+});
+
+// 设置显示名称
+ArticleFilters.displayName = 'ArticleFilters';
 
 export default ArticleFilters; 

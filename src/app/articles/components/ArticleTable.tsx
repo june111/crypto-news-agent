@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { 
   Table, 
   Button, 
@@ -41,7 +41,8 @@ interface ArticleTableProps {
   onTakeDown: (id: string) => void;
 }
 
-const ArticleTable: React.FC<ArticleTableProps> = ({
+// 使用forwardRef包装组件以适应React 19的ref处理方式
+const ArticleTable = forwardRef<HTMLDivElement, ArticleTableProps>(({
   articles,
   loading,
   onEdit,
@@ -51,7 +52,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
   onReject,
   onResend,
   onTakeDown
-}) => {
+}, ref) => {
   const { t } = useI18n();
   
   // 表格列定义
@@ -260,7 +261,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
   ];
 
   return (
-    <div className={styles.tableContainer}>
+    <div className={styles.tableContainer} ref={ref}>
       {loading ? (
         <div style={{ padding: '24px' }}>
           <Skeleton active />
@@ -308,6 +309,9 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
       )}
     </div>
   );
-};
+});
+
+// 设置显示名称
+ArticleTable.displayName = 'ArticleTable';
 
 export default ArticleTable; 

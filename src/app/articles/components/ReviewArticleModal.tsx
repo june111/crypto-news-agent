@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import { Modal, Button, Typography, Space, Spin, Divider, Card, Image } from 'antd';
 import { CheckOutlined, CloseOutlined, FileTextOutlined, PictureOutlined } from '@ant-design/icons';
 import { Article, ArticleStatus } from '@/types/article';
@@ -19,13 +19,14 @@ interface ReviewArticleModalProps {
 
 const { Paragraph, Text, Title } = Typography;
 
-const ReviewArticleModal: React.FC<ReviewArticleModalProps> = ({
+// 使用forwardRef包装组件以适应React 19的ref处理方式
+const ReviewArticleModal = forwardRef<HTMLDivElement, ReviewArticleModalProps>(({
   visible,
   articleId,
   articles,
   onClose,
   onUpdateStatus
-}) => {
+}, ref) => {
   const { t } = useI18n();
   const [loading, setLoading] = useState<boolean>(false);
   
@@ -82,101 +83,106 @@ const ReviewArticleModal: React.FC<ReviewArticleModalProps> = ({
     : '未知时间';
 
   return (
-    <Modal
-      open={visible}
-      title={t('articles.reviewArticle')}
-      onCancel={onClose}
-      width={800}
-      footer={
-        article?.status === '待审核' ? (
-          <Space>
-            <Button onClick={onClose}>{t('common.cancel')}</Button>
-            <Button 
-              type="primary" 
-              danger
-              icon={<CloseOutlined />}
-              onClick={handleReject}
-              loading={loading}
-            >
-              {t('articles.reject')}
-            </Button>
-            <Button 
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={handleApprove}
-              loading={loading}
-            >
-              {t('articles.approve')}
-            </Button>
-          </Space>
+    <div ref={ref}>
+      <Modal
+        open={visible}
+        title={t('articles.reviewArticle')}
+        onCancel={onClose}
+        width={800}
+        footer={
+          article?.status === '待审核' ? (
+            <Space>
+              <Button onClick={onClose}>{t('common.cancel')}</Button>
+              <Button 
+                type="primary" 
+                danger
+                icon={<CloseOutlined />}
+                onClick={handleReject}
+                loading={loading}
+              >
+                {t('articles.reject')}
+              </Button>
+              <Button 
+                type="primary"
+                icon={<CheckOutlined />}
+                onClick={handleApprove}
+                loading={loading}
+              >
+                {t('articles.approve')}
+              </Button>
+            </Space>
+          ) : (
+            <Button onClick={onClose}>{t('common.close')}</Button>
+          )
+        }
+        style={{ top: 20, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}
+      >
+        {!article ? (
+          <Spin tip={t('common.loading')} size="large" />
         ) : (
-          <Button onClick={onClose}>{t('common.close')}</Button>
-        )
-      }
-      style={{ top: 20, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}
-    >
-      {!article ? (
-        <Spin tip={t('common.loading')} size="large" />
-      ) : (
-        <div className={styles.reviewContent}>
-          <Typography.Title level={4}>{article.title}</Typography.Title>
-          
-          <Space className={styles.articleMeta}>
-            <Typography.Text type="secondary">
-              {t('articles.category')}: {article.category}
-            </Typography.Text>
-            <Typography.Text type="secondary">
-              {t('articles.status')}: {t(`articles.${STATUS_KEYS[article.status]}`)}
-            </Typography.Text>
-            <Typography.Text type="secondary">
-              {t('articles.createDate')}: {formattedDate}
-            </Typography.Text>
-          </Space>
-          
-          <Divider />
-          
-          {/* 封面图预览 */}
-          {article.coverImage && (
-            <div className={styles.coverImage}>
+          <div className={styles.reviewContent}>
+            <Typography.Title level={4}>{article.title}</Typography.Title>
+            
+            <Space className={styles.articleMeta}>
+              <Typography.Text type="secondary">
+                {t('articles.category')}: {article.category}
+              </Typography.Text>
+              <Typography.Text type="secondary">
+                {t('articles.status')}: {t(`articles.${STATUS_KEYS[article.status]}`)}
+              </Typography.Text>
+              <Typography.Text type="secondary">
+                {t('articles.createDate')}: {formattedDate}
+              </Typography.Text>
+            </Space>
+            
+            <Divider />
+            
+            {/* 封面图预览 */}
+            {article.coverImage && (
+              <div className={styles.coverImage}>
+                <Typography.Title level={5} className={styles.sectionTitle}>
+                  <PictureOutlined /> {t('articles.coverImage')}
+                </Typography.Title>
+                <Image
+                  src={article.coverImage}
+                  alt={article.title}
+                  className={styles.previewImage}
+                />
+                <Divider />
+              </div>
+            )}
+            
+            <div className={styles.contentSection}>
               <Typography.Title level={5} className={styles.sectionTitle}>
-                <PictureOutlined /> {t('articles.coverImage')}
+                <FileTextOutlined /> {t('articles.content')}
               </Typography.Title>
-              <Image
-                src={article.coverImage}
-                alt={article.title}
-                className={styles.previewImage}
-              />
-              <Divider />
+              <Card className={styles.contentCard}>
+                <div 
+                  dangerouslySetInnerHTML={{ __html: article.content || '' }} 
+                  className={styles.articleContent}
+                />
+              </Card>
             </div>
-          )}
-          
-          <div className={styles.contentSection}>
-            <Typography.Title level={5} className={styles.sectionTitle}>
-              <FileTextOutlined /> {t('articles.content')}
-            </Typography.Title>
-            <Card className={styles.contentCard}>
-              <div 
-                dangerouslySetInnerHTML={{ __html: article.content || '' }} 
-                className={styles.articleContent}
-              />
-            </Card>
+            
+            {Array.isArray(article.keywords) && article.keywords.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <Text strong>关键词: </Text>
+                {article.keywords.map((keyword, index) => (
+                  <Text key={index} style={{ marginRight: 8 }}>
+                    {keyword}
+                    {index < article.keywords.length - 1 ? ',' : ''}
+                  </Text>
+                ))}
+              </div>
+            )}
           </div>
-          
-          {Array.isArray(article.keywords) && article.keywords.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <Text strong>关键词: </Text>
-              {article.keywords.map((keyword, index) => (
-                <Text key={index} style={{ marginRight: 8 }}>
-                  {keyword}
-                  {index < article.keywords.length - 1 ? ',' : ''}
-                </Text>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </Modal>
+        )}
+      </Modal>
+    </div>
   );
-};
+});
+
+// 设置显示名称
+ReviewArticleModal.displayName = 'ReviewArticleModal';
 
 export default ReviewArticleModal; 

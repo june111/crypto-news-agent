@@ -5,10 +5,11 @@ import zhCN from "antd/locale/zh_CN";
 import enUS from "antd/locale/en_US";
 import Script from 'next/script';
 import { getLocale } from '@/lib/i18n';
+import { AntdRegistry } from '@ant-design/nextjs-registry';
 
 export const metadata: Metadata = {
   title: "加密货币新闻管理系统",
-  description: "一个用于管理加密货币新闻和文章的管理系统",
+  description: "一个用于管理加密货币新闻和文章的管理系统"
 };
 
 export default function RootLayout({
@@ -30,23 +31,23 @@ export default function RootLayout({
             --font-family: 'Inter', system-ui, sans-serif;
           }
         `}} />
-        {/* 运行时配置脚本 */}
-        <Script src="/config.js" strategy="beforeInteractive" />
       </head>
       <body className="font-inter">
-        <ConfigProvider
-          locale={antLocale}
-          theme={{
-            token: {
-              colorPrimary: '#1890ff',
-              colorLink: '#1890ff',
-              colorLinkHover: '#40a9ff',
-              borderRadius: 4
-            }
-          }}
-        >
-          {children}
-        </ConfigProvider>
+        <AntdRegistry>
+          <ConfigProvider
+            locale={antLocale}
+            theme={{
+              token: {
+                colorPrimary: '#1890ff',
+                colorLink: '#1890ff',
+                colorLinkHover: '#40a9ff',
+                borderRadius: 4
+              }
+            }}
+          >
+            {children}
+          </ConfigProvider>
+        </AntdRegistry>
       </body>
     </html>
   );

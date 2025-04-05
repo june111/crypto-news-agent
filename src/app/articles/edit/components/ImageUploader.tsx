@@ -272,7 +272,9 @@ export default function ImageUploader({ coverImage, setCoverImage, disabled = fa
         onCancel={handleCancel}
         centered
         width={800}
-        bodyStyle={{ padding: 0 }}
+        styles={{
+          body: { padding: 0 }
+        }}
       >
         <div style={{ 
           maxHeight: '80vh', 

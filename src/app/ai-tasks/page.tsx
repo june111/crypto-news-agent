@@ -454,17 +454,6 @@ const AITasksPage = () => {
               {t('aiTasks.description')}
             </Text>
           </div>
-          
-          <div>
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />}
-              onClick={handleShowModal}
-              size="large"
-            >
-              {t('aiTasks.createTask')}
-            </Button>
-          </div>
         </div>
         
         <Divider />

@@ -69,13 +69,13 @@ export const formatDateTimeString = (dateTimeString: string | undefined): string
 /**
  * 渲染关键词标签
  * @param keywords 关键词数组
- * @returns JSX元素
+ * @returns React元素
  */
 export const renderKeywordTags = (
   keywords: string[], 
   containerClassName?: string, 
   tagClassName?: string
-): JSX.Element => {
+): React.ReactElement => {
   // 确保keywords是有效的数组
   if (!keywords || !Array.isArray(keywords)) {
     return <div className={containerClassName}></div>;
