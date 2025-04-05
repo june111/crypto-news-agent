@@ -4,6 +4,9 @@
 
 #### 优化代码
 
+#### 部署到线上
+https://crypto-news-agent.vercel.app/
+
 -----------
 
 ### 2025.04.04
