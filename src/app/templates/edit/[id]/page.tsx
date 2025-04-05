@@ -272,7 +272,7 @@ const TemplateEditPage = () => {
               {/* 模板简介 */}
               <Form.Item 
                 name="description"
-                label={t('templates.description')}
+                label={t('templates.templateDescription')}
                 rules={[{ required: true, message: t('templates.descriptionRequired') }]}
               >
                 <TextArea 

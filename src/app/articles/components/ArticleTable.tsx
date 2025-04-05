@@ -27,61 +27,7 @@ import {
 import styles from '../articles.module.css';
 import { Article, ArticleStatus } from '@/types/article';
 import useI18n from '@/hooks/useI18n';
-
-// 获取状态对应的颜色
-const getStatusColor = (status: ArticleStatus) => {
-  switch (status) {
-    case '已发布':
-      return 'success';
-    case '待审核':
-      return 'processing';
-    case '不过审':
-      return 'error';
-    case '发布失败':
-      return 'warning';
-    case '已下架':
-      return 'default';
-    default:
-      return 'default';
-  }
-};
-
-// 状态与国际化键值映射
-const STATUS_KEYS = {
-  '草稿': 'draft',
-  '待审核': 'pending',
-  '已发布': 'published',
-  '不过审': 'rejected',
-  '发布失败': 'failed',
-  '已下架': 'unpublished'
-};
-
-// 渲染关键词标签
-const renderKeywordTags = (keywords: string[]) => {
-  // 确保keywords是有效的数组
-  if (!keywords || !Array.isArray(keywords)) {
-    return <div className={styles.keywordTagContainer}></div>;
-  }
-  
-  return (
-    <div className={styles.keywordTagContainer}>
-      {keywords.length > 0 && keywords.slice(0, 3).map((keyword: string, index: number) => (
-        <span key={index} className={styles.keywordTag}>
-          {keyword}
-        </span>
-      ))}
-      {keywords.length > 3 && (
-        <span style={{ 
-          color: '#8c8c8c',
-          fontSize: '12px',
-          padding: '2px 4px'
-        }}>
-          +{keywords.length - 3}
-        </span>
-      )}
-    </div>
-  );
-};
+import { STATUS_KEYS, getStatusTagColor, formatDateTimeString, renderKeywordTags } from '../utils/articleUtils';
 
 interface ArticleTableProps {
   articles: Article[];
@@ -127,24 +73,11 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
         const timeString = updatedAt || record.date || record.createdAt || '';
         if (!timeString) return <span>-</span>;
         
-        // 格式化日期时间
-        const date = new Date(timeString);
-        const formattedDate = date.toLocaleDateString('zh-CN', { 
-          year: 'numeric', 
-          month: '2-digit', 
-          day: '2-digit' 
-        });
-        
-        const formattedTime = date.toLocaleTimeString('zh-CN', {
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-        
         return (
           <Tooltip title={`${t('articles.lastUpdate')}: ${timeString}`}>
             <span>
               <CalendarOutlined style={{ marginRight: 4, opacity: 0.5 }} />
-              {formattedDate} {formattedTime}
+              {formatDateTimeString(timeString)}
             </span>
           </Tooltip>
         );
@@ -210,7 +143,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
       dataIndex: 'keywords',
       key: 'keywords',
       width: 180,
-      render: renderKeywordTags,
+      render: (keywords: string[]) => renderKeywordTags(keywords, styles.keywordTagContainer, styles.keywordTag),
     },
     {
       title: t('articles.category'),
@@ -227,7 +160,7 @@ const ArticleTable: React.FC<ArticleTableProps> = ({
       key: 'status',
       width: 100,
       render: (status: ArticleStatus) => (
-        <Tag color={getStatusColor(status)}>
+        <Tag color={getStatusTagColor(status)}>
           {t(`articles.${STATUS_KEYS[status]}`)}
         </Tag>
       ),

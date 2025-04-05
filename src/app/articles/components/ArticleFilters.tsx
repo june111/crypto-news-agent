@@ -1,37 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Card, Form, Input, Select, DatePicker, Row, Col, Button, Tag, Space } from 'antd';
+import React from 'react';
+import { Card, Form, Input, Select, DatePicker, Row, Col, Button } from 'antd';
 import { SearchOutlined, ClearOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { Article, ArticleStatus, ARTICLE_CATEGORIES } from '@/types/article';
+import { ArticleStatus } from '@/types/article';
 import useI18n from '@/hooks/useI18n';
+import { STATUS_KEYS } from '../utils/articleUtils';
 
 import styles from '../articles.module.css';
 
 // 状态选项
-const STATUS_OPTIONS = ['草稿', '待审核', '已发布', '不过审', '发布失败', '已下架'];
-const STATUS_KEYS = ['draft', 'pending', 'published', 'rejected', 'failed', 'unpublished'];
-
-// 获取状态颜色
-const getStatusColor = (status: string): string => {
-  switch (status) {
-    case '已发布':
-      return 'success';
-    case '待审核':
-      return 'processing';
-    case '不过审':
-      return 'error';
-    case '发布失败':
-      return 'warning';
-    case '草稿':
-      return 'cyan';
-    case '已下架':
-      return 'default';
-    default:
-      return '';
-  }
-};
+const STATUS_OPTIONS: ArticleStatus[] = ['草稿', '待审核', '已发布', '不过审', '发布失败', '已下架'];
 
 interface ArticleFiltersProps {
   filters: {
@@ -126,7 +106,7 @@ const ArticleFilters: React.FC<ArticleFiltersProps> = ({
               >
                 {STATUS_OPTIONS.map((status, index) => (
                   <Option key={status} value={status}>
-                    {t(`articles.${STATUS_KEYS[index]}`)}
+                    {t(`articles.${STATUS_KEYS[status]}`)}
                   </Option>
                 ))}
               </Select>

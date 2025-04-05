@@ -2,59 +2,29 @@
 
 import React, { useState, useEffect, Suspense, lazy, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
-import Image from 'next/image';
 import { 
-  Table, 
-  Input, 
   Button, 
   Space, 
-  Tag, 
   Typography, 
   Select,
-  Form,
-  DatePicker,
-  Popconfirm,
   message,
-  Tooltip,
-  Row,
-  Col,
-  Divider,
-  Modal,
-  Card,
-  Badge,
   Empty,
-  Statistic,
   Skeleton,
-  Spin
+  Spin,
+  Card
 } from 'antd';
 import { 
-  PlusOutlined, 
-  CheckOutlined,
-  CloseOutlined,
-  RobotOutlined,
-  SearchOutlined,
-  ClearOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  FileTextOutlined,
-  FireOutlined,
-  ClockCircleOutlined,
-  ExportOutlined,
-  CalendarOutlined
+  PlusOutlined
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 
 import styles from './articles.module.css';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Article, ArticleStatus, ARTICLE_CATEGORIES } from '@/types/article';
-import { isValidUUID } from '@/utils/uuid';
 import useI18n from '@/hooks/useI18n';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
-const { Search } = Input;
 
 // 模拟热点关键词类型定义
 interface HotTopic {
@@ -95,37 +65,6 @@ const getStatusColor = (status: ArticleStatus) => {
   }
 };
 
-// 获取统计数据
-const getArticleStats = (articles: Article[]) => {
-  const total = articles.length;
-  
-  // 按状态统计
-  const publishedCount = articles.filter(article => article.status === '已发布').length;
-  const pendingCount = articles.filter(article => article.status === '待审核').length;
-  const rejectedCount = articles.filter(article => article.status === '不过审').length;
-  const failedCount = articles.filter(article => article.status === '发布失败').length;
-  const draftCount = articles.filter(article => article.status === '草稿').length;
-  const unpublishedCount = articles.filter(article => article.status === '已下架').length;
-  
-  // 按分类统计
-  const categoryMap = new Map<string, number>();
-  articles.forEach(article => {
-    const count = categoryMap.get(article.category) || 0;
-    categoryMap.set(article.category, count + 1);
-  });
-  
-  return {
-    total,
-    publishedCount,
-    pendingCount,
-    rejectedCount, 
-    failedCount,
-    draftCount,
-    unpublishedCount,
-    categoryMap
-  };
-};
-
 // 懒加载较大组件
 const ArticleTable = lazy(() => import('./components/ArticleTable'));
 const ArticleFilters = lazy(() => import('./components/ArticleFilters'));
@@ -133,7 +72,7 @@ const StatisticsCards = lazy(() => import('./components/StatisticsCards'));
 const GenerateArticleModal = lazy(() => import('./components/GenerateArticleModal'));
 const ReviewArticleModal = lazy(() => import('./components/ReviewArticleModal'));
 
-// 防止重复渲染的加载组件
+// 加载组件
 const LoadingComponent = () => (
   <div style={{ padding: '40px', textAlign: 'center' }}>
     <Spin size="large" />
@@ -141,7 +80,7 @@ const LoadingComponent = () => (
   </div>
 );
 
-// 添加ArticleTable需要的处理函数
+// ArticleTable属性定义
 interface ArticleTableProps {
   articles: Article[];
   loading: boolean;
@@ -167,7 +106,7 @@ const safeLocalStorage = {
       try {
         localStorage.setItem(key, value);
       } catch (e) {
-        console.warn(`无法设置localStorage项 ${key}:`, e);
+        console.warn(`无法设置localStorage项 ${key}`);
       }
     }
   },
@@ -181,9 +120,9 @@ const safeLocalStorage = {
 export default function ArticlesPage() {
   const router = useRouter();
   const [messageApi, contextHolder] = message.useMessage();
-  const { t } = useI18n(); // 使用国际化钩子
+  const { t } = useI18n();
   
-  // 核心状态 - 最小化状态数量
+  // 核心状态
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [dataLoaded, setDataLoaded] = useState<boolean>(false);
@@ -203,83 +142,13 @@ export default function ArticlesPage() {
   const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
   const [articleToReview, setArticleToReview] = useState<string | null>(null);
   
-  // 搜索相关状态
-  const [titleKeyword, setTitleKeyword] = useState('');
-  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
-  const [keywordSearch, setKeywordSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [contentSearch, setContentSearch] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<ArticleStatus | ''>('');
-  
-  // 生成文章表单状态
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState('');
-  
   // 热点话题和模板列表状态
   const [hotTopics, setHotTopics] = useState<HotTopic[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
 
-  // 获取文章列表 - 使用Supabase API
-  const fetchArticles = async () => {
-    if (dataLoaded && articles.length > 0) {
-      console.log('文章数据已加载，跳过重复请求');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      console.log('开始获取文章列表数据...');
-      
-      const response = await fetch('/api/articles', {
-        method: 'GET',
-        headers: {
-          'X-Page-Request': '1',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        const errorDetail = responseData.error || responseData.message || '未知错误';
-        const errorCode = responseData.code || '';
-        console.error('获取文章列表失败详情:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorDetail,
-          errorCode,
-          responseData
-        });
-        throw new Error(`获取文章列表失败: ${errorDetail}${errorCode ? ` (错误码: ${errorCode})` : ''}`);
-      }
-      
-      // 格式化日期
-      const formattedData = Array.isArray(responseData.articles) ? responseData.articles.map((article: any) => ({
-        ...article,
-        date: article.created_at ? new Date(article.created_at).toISOString().split('T')[0] : '',
-        updatedAt: article.updated_at || article.created_at,
-        status: mapStatusFromApi(article.status),
-        keywords: article.keywords || [],
-        coverImage: article.cover_image || '',
-        hotTopicId: article.hot_topic_id || null,
-        hotTopicName: article.hot_topic ? article.hot_topic.keyword : ''
-      })) : [];
-      
-      setArticles(formattedData);
-      setDataLoaded(true);
-      // 获取统计信息
-      const stats = getArticleStats(formattedData);
-      console.log('文章统计:', stats);
-    } catch (error) {
-      console.error('获取文章列表失败:', error);
-      messageApi.error({
-        content: error instanceof Error ? error.message : '获取文章列表失败，请重试',
-        duration: 10,
-        style: { whiteSpace: 'pre-line', wordBreak: 'break-word' }
-      });
-    } finally {
-      setLoading(false);
-    }
+  // 封装错误处理的通用函数
+  const handleApiError = (error: any, message: string) => {
+    messageApi.error(error instanceof Error ? error.message : message);
   };
 
   // 将API状态映射到前端状态
@@ -302,62 +171,81 @@ export default function ArticlesPage() {
     }
   };
 
-  // 获取热点话题列表
-  const fetchHotTopics = async () => {
-    // 1. 首先检查已加载状态
-    if (hotTopicsLoaded && hotTopics.length > 0) {
-      console.log('热点话题数据已加载，跳过重复请求');
-      return;
-    }
+  // 获取文章列表
+  const fetchArticles = async () => {
+    if (dataLoaded && articles.length > 0) return;
     
-    // 2. 检查本地缓存，如果存在且未过期则使用缓存
     try {
-      const cachedData = safeLocalStorage.getItem('hotTopicsCache');
-      const cachedTime = safeLocalStorage.getItem('hotTopicsCacheTime');
+      setLoading(true);
       
-      if (cachedData && cachedTime) {
-        // 检查缓存是否过期（30分钟有效期）
-        const cacheAge = Date.now() - parseInt(cachedTime);
-        if (cacheAge < 30 * 60 * 1000) { // 30分钟有效期
-          const parsedData = JSON.parse(cachedData);
-          if (Array.isArray(parsedData) && parsedData.length > 0) {
-            console.log('使用缓存的热点话题数据', parsedData.length);
-            setHotTopics(parsedData);
-            setHotTopicsLoaded(true);
-            return;
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('读取热点话题缓存失败:', e);
-      // 忽略缓存错误，继续获取新数据
-    }
-    
-    // 3. 缓存不存在或已过期，从API获取数据
-    try {
-      console.log('开始获取热点话题列表数据...');
-      
-      const response = await fetch('/api/hot-topics', {
+      const response = await fetch('/api/articles', {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'X-Cache-Bust': Date.now().toString() // 避免浏览器缓存
+          'X-Page-Request': '1',
+          'Content-Type': 'application/json'
         }
       });
       
       const responseData = await response.json();
       
       if (!response.ok) {
-        const errorDetail = responseData.error || responseData.message || '未知错误';
-        const errorCode = responseData.code || '';
-        console.error('获取热点话题列表失败详情:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorDetail,
-          errorCode,
-          responseData
-        });
-        throw new Error(`获取热点话题列表失败: ${errorDetail}${errorCode ? ` (错误码: ${errorCode})` : ''}`);
+        throw new Error(responseData.error || responseData.message || '获取文章列表失败');
+      }
+      
+      // 格式化日期
+      const formattedData = Array.isArray(responseData.articles) ? responseData.articles.map((article: any) => ({
+        ...article,
+        date: article.created_at ? new Date(article.created_at).toISOString().split('T')[0] : '',
+        updatedAt: article.updated_at || article.created_at,
+        status: mapStatusFromApi(article.status),
+        keywords: article.keywords || [],
+        coverImage: article.cover_image || '',
+        hotTopicId: article.hot_topic_id || null,
+        hotTopicName: article.hot_topic ? article.hot_topic.keyword : ''
+      })) : [];
+      
+      setArticles(formattedData);
+      setDataLoaded(true);
+    } catch (error) {
+      handleApiError(error, '获取文章列表失败，请重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 获取热点话题列表
+  const fetchHotTopics = async () => {
+    if (hotTopicsLoaded && hotTopics.length > 0) return;
+    
+    try {
+      // 检查缓存
+      const cachedData = safeLocalStorage.getItem('hotTopicsCache');
+      const cachedTime = safeLocalStorage.getItem('hotTopicsCacheTime');
+      
+      if (cachedData && cachedTime) {
+        const cacheAge = Date.now() - parseInt(cachedTime);
+        if (cacheAge < 30 * 60 * 1000) { // 30分钟有效期
+          const parsedData = JSON.parse(cachedData);
+          if (Array.isArray(parsedData) && parsedData.length > 0) {
+            setHotTopics(parsedData);
+            setHotTopicsLoaded(true);
+            return;
+          }
+        }
+      }
+      
+      const response = await fetch('/api/hot-topics', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Cache-Bust': Date.now().toString()
+        }
+      });
+      
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.error || responseData.message || '获取热点话题列表失败');
       }
       
       let topics = [];
@@ -369,19 +257,13 @@ export default function ArticlesPage() {
           date: topic.created_at ? new Date(topic.created_at).toISOString().split('T')[0] : ''
         }));
         
-        // 更新状态
         setHotTopics(topics);
         
         // 保存到本地缓存
-        try {
-          safeLocalStorage.setItem('hotTopicsCache', JSON.stringify(topics));
-          safeLocalStorage.setItem('hotTopicsCacheTime', Date.now().toString());
-        } catch (e) {
-          console.warn('缓存热点话题失败:', e);
-        }
+        safeLocalStorage.setItem('hotTopicsCache', JSON.stringify(topics));
+        safeLocalStorage.setItem('hotTopicsCacheTime', Date.now().toString());
       } else {
-        console.warn('热点话题响应数据格式不符合预期:', responseData);
-        // 如果API未返回预期数据，临时使用默认值
+        // 默认值
         setHotTopics([
           { id: '123e4567-e89b-12d3-a456-426614174001', keyword: '比特币', popularity: 89, date: '2023-03-29' },
           { id: '123e4567-e89b-12d3-a456-426614174002', keyword: '以太坊', popularity: 76, date: '2023-03-28' }
@@ -390,13 +272,9 @@ export default function ArticlesPage() {
       
       setHotTopicsLoaded(true);
     } catch (error) {
-      console.error('获取热点话题列表失败:', error);
-      messageApi.error({
-        content: error instanceof Error ? error.message : '获取热点话题列表失败，将使用默认数据',
-        duration: 5
-      });
+      handleApiError(error, '获取热点话题列表失败');
       
-      // 加载失败时使用默认数据，确保UI可用
+      // 加载失败时使用默认数据
       setHotTopics([
         { id: '123e4567-e89b-12d3-a456-426614174001', keyword: '比特币', popularity: 89, date: '2023-03-29' },
         { id: '123e4567-e89b-12d3-a456-426614174002', keyword: '以太坊', popularity: 76, date: '2023-03-28' }
@@ -407,60 +285,37 @@ export default function ArticlesPage() {
   
   // 获取文章模板列表
   const fetchTemplates = async () => {
-    // 1. 首先检查已加载状态
-    if (templatesLoaded && templates.length > 0) {
-      console.log('文章模板数据已加载，跳过重复请求');
-      return;
-    }
+    if (templatesLoaded && templates.length > 0) return;
     
-    // 2. 检查本地缓存，如果存在且未过期则使用缓存
     try {
+      // 检查缓存
       const cachedData = safeLocalStorage.getItem('templatesCache');
       const cachedTime = safeLocalStorage.getItem('templatesCacheTime');
       
       if (cachedData && cachedTime) {
-        // 检查缓存是否过期（1小时有效期）
         const cacheAge = Date.now() - parseInt(cachedTime);
         if (cacheAge < 60 * 60 * 1000) { // 1小时有效期
           const parsedData = JSON.parse(cachedData);
           if (Array.isArray(parsedData) && parsedData.length > 0) {
-            console.log('使用缓存的模板数据', parsedData.length);
             setTemplates(parsedData);
             setTemplatesLoaded(true);
             return;
           }
         }
       }
-    } catch (e) {
-      console.warn('读取模板缓存失败:', e);
-      // 忽略缓存错误，继续获取新数据
-    }
-    
-    // 3. 缓存不存在或已过期，从API获取数据
-    try {
-      console.log('开始获取文章模板列表数据...');
       
       const response = await fetch('/api/templates', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'X-Cache-Bust': Date.now().toString() // 避免浏览器缓存
+          'X-Cache-Bust': Date.now().toString()
         }
       });
       
       const responseData = await response.json();
       
       if (!response.ok) {
-        const errorDetail = responseData.error || responseData.message || '未知错误';
-        const errorCode = responseData.code || '';
-        console.error('获取文章模板列表失败详情:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorDetail,
-          errorCode,
-          responseData
-        });
-        throw new Error(`获取文章模板列表失败: ${errorDetail}${errorCode ? ` (错误码: ${errorCode})` : ''}`);
+        throw new Error(responseData.error || responseData.message || '获取文章模板列表失败');
       }
       
       let templateData = [];
@@ -472,19 +327,13 @@ export default function ArticlesPage() {
           category: template.category || '未分类'
         }));
         
-        // 更新状态
         setTemplates(templateData);
         
         // 保存到本地缓存
-        try {
-          safeLocalStorage.setItem('templatesCache', JSON.stringify(templateData));
-          safeLocalStorage.setItem('templatesCacheTime', Date.now().toString());
-        } catch (e) {
-          console.warn('缓存模板数据失败:', e);
-        }
+        safeLocalStorage.setItem('templatesCache', JSON.stringify(templateData));
+        safeLocalStorage.setItem('templatesCacheTime', Date.now().toString());
       } else {
-        console.warn('文章模板响应数据格式不符合预期:', responseData);
-        // 如果API未返回预期数据，临时使用默认值
+        // 默认值
         setTemplates([
           { id: 'a23e4567-e89b-12d3-a456-426614174001', title: '价格分析模板', description: '用于分析加密货币价格走势', category: '分析' },
           { id: 'a23e4567-e89b-12d3-a456-426614174002', title: '项目介绍模板', description: '介绍区块链项目的功能和特点', category: '介绍' }
@@ -493,13 +342,9 @@ export default function ArticlesPage() {
       
       setTemplatesLoaded(true);
     } catch (error) {
-      console.error('获取文章模板列表失败:', error);
-      messageApi.error({
-        content: error instanceof Error ? error.message : '获取文章模板列表失败，将使用默认数据',
-        duration: 5
-      });
+      handleApiError(error, '获取文章模板列表失败');
       
-      // 加载失败时使用默认数据，确保UI可用
+      // 加载失败时使用默认数据
       setTemplates([
         { id: 'a23e4567-e89b-12d3-a456-426614174001', title: '价格分析模板', description: '用于分析加密货币价格走势', category: '分析' },
         { id: 'a23e4567-e89b-12d3-a456-426614174002', title: '项目介绍模板', description: '介绍区块链项目的功能和特点', category: '介绍' }
@@ -508,29 +353,24 @@ export default function ArticlesPage() {
     }
   };
 
-  // 只在组件挂载时获取一次数据，并在需要时提供手动刷新
+  // 组件挂载时获取数据
   useEffect(() => {
     fetchArticles();
     fetchHotTopics();
     fetchTemplates();
   }, []);
 
-  // 添加手动刷新方法
+  // 手动刷新方法
   const handleRefreshList = () => {
-    // 清除加载状态标记
     setDataLoaded(false);
     setHotTopicsLoaded(false);
     setTemplatesLoaded(false);
     
-    // 清除本地缓存，确保获取最新数据
-    try {
-      safeLocalStorage.removeItem('hotTopicsCache');
-      safeLocalStorage.removeItem('hotTopicsCacheTime');
-      safeLocalStorage.removeItem('templatesCache');
-      safeLocalStorage.removeItem('templatesCacheTime');
-    } catch (e) {
-      console.warn('清除缓存失败:', e);
-    }
+    // 清除本地缓存
+    safeLocalStorage.removeItem('hotTopicsCache');
+    safeLocalStorage.removeItem('hotTopicsCacheTime');
+    safeLocalStorage.removeItem('templatesCache');
+    safeLocalStorage.removeItem('templatesCacheTime');
     
     // 重新获取所有数据
     fetchArticles();
@@ -581,28 +421,14 @@ export default function ArticlesPage() {
       const responseData = await response.json();
       
       if (!response.ok) {
-        const errorDetail = responseData.error || responseData.message || '未知错误';
-        const errorCode = responseData.code || '';
-        console.error('删除文章失败详情:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorDetail,
-          errorCode,
-          responseData
-        });
-        throw new Error(`删除文章失败: ${errorDetail}${errorCode ? ` (错误码: ${errorCode})` : ''}`);
+        throw new Error(responseData.error || responseData.message || '删除文章失败');
       }
       
       // 删除成功后更新列表
       setArticles(articles.filter(article => article.id !== id));
       messageApi.success('文章已成功删除');
     } catch (error) {
-      console.error('删除文章失败:', error);
-      messageApi.error({
-        content: error instanceof Error ? error.message : '删除文章失败，请重试',
-        duration: 5,
-        style: { whiteSpace: 'pre-line', wordBreak: 'break-word' }
-      });
+      handleApiError(error, '删除文章失败，请重试');
     }
   };
   
@@ -629,29 +455,19 @@ export default function ArticlesPage() {
       keywords: articleData.keywords || [],
       status: '待审核' as ArticleStatus,
       createdAt: new Date().toISOString(),
-      // 添加Dify相关字段
       source: articleData.source || '本地模板',
       difyMessageId: articleData.difyMessageId || '',
       difyConversationId: articleData.difyConversationId || '',
-      // 如果是Dify生成的，记录下来
       isDify: !!articleData.difyMessageId,
       aiGenerated: true
     };
     
     // 将新文章添加到列表中
-    setArticles(prevArticles => {
-      if (!Array.isArray(prevArticles)) {
-        console.error('articles 不是数组:', prevArticles);
-        return [newArticle];
-      }
-      return [newArticle, ...prevArticles];
-    });
+    setArticles(prevArticles => [newArticle, ...prevArticles]);
     
-    const successMessage = articleData.difyMessageId 
+    messageApi.success(articleData.difyMessageId 
       ? 'Dify AI文章生成已提交，请稍后查看结果' 
-      : 'AI文章生成已提交，请稍后查看结果';
-    
-    messageApi.success(successMessage);
+      : 'AI文章生成已提交，请稍后查看结果');
     handleCloseModal();
   };
   
@@ -669,15 +485,9 @@ export default function ArticlesPage() {
       
   // 更新文章状态
   const handleUpdateArticleStatus = (id: string, status: ArticleStatus) => {
-    setArticles(prevArticles => {
-      if (!Array.isArray(prevArticles)) {
-        console.error('articles 不是数组:', prevArticles);
-        return [];
-      }
-      return prevArticles.map(article => 
-        article.id === id ? { ...article, status } : article
-      );
-    });
+    setArticles(prevArticles => 
+      prevArticles.map(article => article.id === id ? { ...article, status } : article)
+    );
     
     handleCloseReviewModal();
     messageApi.success(`文章已${status}`);
@@ -685,11 +495,6 @@ export default function ArticlesPage() {
   
   // 通过高性能筛选过滤数据
   const getFilteredArticles = () => {
-    if (!Array.isArray(articles)) {
-      console.error('articles 不是数组，无法过滤:', articles);
-      return [];
-    }
-    
     return articles.filter(article => {
       if (filters.title && !article.title.toLowerCase().includes(filters.title.toLowerCase())) {
         return false;
@@ -702,7 +507,6 @@ export default function ArticlesPage() {
       if (filters.keyword && !(
         article.keywords && 
         Array.isArray(article.keywords) && 
-        article.keywords.length > 0 && 
         article.keywords.some(keyword => 
           keyword && typeof keyword === 'string' && 
           keyword.toLowerCase().includes(filters.keyword.toLowerCase())
@@ -715,7 +519,7 @@ export default function ArticlesPage() {
         return false;
       }
       
-      if (filters.content && article.content && typeof article.content === 'string' && 
+      if (filters.content && article.content && 
           !article.content.toLowerCase().includes(filters.content.toLowerCase())) {
         return false;
       }
@@ -733,119 +537,60 @@ export default function ArticlesPage() {
   // 处理文章审核通过
   const handleApproveArticle = async (id: string) => {
     try {
-      // TODO: 添加API调用以更新文章状态为"已发布"
-      // 未来需要调用发布API，现在暂时只更新前端状态
-      setArticles(prevArticles => {
-        if (!Array.isArray(prevArticles)) {
-          console.error('articles 不是数组:', prevArticles);
-          return [];
-        }
-        return prevArticles.map(article => 
-          article.id === id ? { ...article, status: '已发布' as ArticleStatus } : article
-        );
-      });
+      // 更新前端状态
+      setArticles(prevArticles => 
+        prevArticles.map(article => article.id === id ? { ...article, status: '已发布' as ArticleStatus } : article)
+      );
       
       messageApi.success('文章已通过审核并发布');
     } catch (error) {
-      console.error('审核文章失败:', error);
-      messageApi.error({
-        content: error instanceof Error ? error.message : '审核文章失败，请重试',
-        duration: 5
-      });
+      handleApiError(error, '审核文章失败，请重试');
     }
   };
 
   // 处理文章审核不通过
   const handleRejectArticle = async (id: string) => {
     try {
-      // TODO: 添加API调用以更新文章状态为"不过审"
-      // 目前简单更新前端状态
-      setArticles(prevArticles => {
-        if (!Array.isArray(prevArticles)) {
-          console.error('articles 不是数组:', prevArticles);
-          return [];
-        }
-        return prevArticles.map(article => 
-          article.id === id ? { ...article, status: '不过审' as ArticleStatus } : article
-        );
-      });
+      setArticles(prevArticles =>
+        prevArticles.map(article => article.id === id ? { ...article, status: '不过审' as ArticleStatus } : article)
+      );
       
       messageApi.success('文章已被标记为不通过');
     } catch (error) {
-      console.error('审核文章失败:', error);
-      messageApi.error({
-        content: error instanceof Error ? error.message : '审核文章失败，请重试',
-        duration: 5
-      });
+      handleApiError(error, '审核文章失败，请重试');
     }
   };
 
   // 处理文章重新发布
   const handleResendArticle = async (id: string) => {
     try {
-      // TODO: 添加API调用以重新发布文章
-      // 目前简单更新前端状态
-      setArticles(prevArticles => {
-        if (!Array.isArray(prevArticles)) {
-          console.error('articles 不是数组:', prevArticles);
-          return [];
-        }
-        return prevArticles.map(article => 
-          article.id === id ? { ...article, status: '待审核' as ArticleStatus } : article
-        );
-      });
+      setArticles(prevArticles => 
+        prevArticles.map(article => article.id === id ? { ...article, status: '待审核' as ArticleStatus } : article)
+      );
       
       messageApi.success('文章已重新提交发布');
     } catch (error) {
-      console.error('重新发布文章失败:', error);
-      messageApi.error({
-        content: error instanceof Error ? error.message : '重新发布文章失败，请重试',
-        duration: 5
-      });
+      handleApiError(error, '重新发布文章失败，请重试');
     }
   };
   
   // 处理文章下架操作
   const handleTakeDownArticle = async (id: string) => {
     try {
-      // TODO: 添加API调用以更新文章状态为"已下架"
-      // 目前简单更新前端状态
-      setArticles(prevArticles => {
-        if (!Array.isArray(prevArticles)) {
-          console.error('articles 不是数组:', prevArticles);
-          return [];
-        }
-        return prevArticles.map(article => 
-          article.id === id ? { ...article, status: '已下架' as ArticleStatus } : article
-        );
-      });
+      setArticles(prevArticles => 
+        prevArticles.map(article => article.id === id ? { ...article, status: '已下架' as ArticleStatus } : article)
+      );
       
       messageApi.success('文章已下架');
     } catch (error) {
-      console.error('下架文章失败:', error);
-      messageApi.error({
-        content: error instanceof Error ? error.message : '下架文章失败，请重试',
-        duration: 5
-      });
+      handleApiError(error, '下架文章失败，请重试');
     }
   };
   
   // 渲染文章列表
   const renderArticles = () => {
     if (loading) {
-      return (
-        <Skeleton active paragraph={{ rows: 10 }} />
-      );
-    }
-    
-    if (!Array.isArray(filteredArticles)) {
-      console.error('filteredArticles 不是有效数组:', filteredArticles);
-      return (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="文章数据格式错误，请刷新页面重试"
-        />
-      );
+      return <Skeleton active paragraph={{ rows: 10 }} />;
     }
     
     if (filteredArticles.length === 0) {
@@ -880,26 +625,13 @@ export default function ArticlesPage() {
   
   // 获取统计信息
   const getStats = () => {
-    if (!articles || !Array.isArray(articles)) {
-      console.error('articles 不是有效数组，无法获取统计信息:', articles);
-      return {
-        total: 0,
-        publishedCount: 0,
-        pendingCount: 0,
-        rejectedCount: 0,
-        failedCount: 0,
-        unpublishedCount: 0,
-        draftCount: 0
-      };
-    }
-    
     const total = articles.length;
-    const publishedCount = articles.filter(article => article && article.status === '已发布').length;
-    const pendingCount = articles.filter(article => article && article.status === '待审核').length;
-    const rejectedCount = articles.filter(article => article && article.status === '不过审').length;
-    const failedCount = articles.filter(article => article && article.status === '发布失败').length;
-    const unpublishedCount = articles.filter(article => article && article.status === '已下架').length;
-    const draftCount = articles.filter(article => article && article.status === '草稿').length;
+    const publishedCount = articles.filter(article => article.status === '已发布').length;
+    const pendingCount = articles.filter(article => article.status === '待审核').length;
+    const rejectedCount = articles.filter(article => article.status === '不过审').length;
+    const failedCount = articles.filter(article => article.status === '发布失败').length;
+    const unpublishedCount = articles.filter(article => article.status === '已下架').length;
+    const draftCount = articles.filter(article => article.status === '草稿').length;
     
     return {
       total,
@@ -966,7 +698,7 @@ export default function ArticlesPage() {
         />
       </Suspense>
       
-      {/* 文章列表 - 使用新的组件级加载效果 */}
+      {/* 文章列表 */}
       <Card className={styles.articlesContainer}>
         {renderArticles()}
       </Card>

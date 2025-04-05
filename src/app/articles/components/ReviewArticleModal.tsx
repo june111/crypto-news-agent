@@ -7,16 +7,7 @@ import { Article, ArticleStatus } from '@/types/article';
 import styles from '../articles.module.css';
 import dayjs from 'dayjs';
 import useI18n from '@/hooks/useI18n';
-
-// 状态与国际化键值映射
-const STATUS_KEYS = {
-  '草稿': 'draft',
-  '待审核': 'pending',
-  '已发布': 'published',
-  '不过审': 'rejected',
-  '发布失败': 'failed',
-  '已下架': 'unpublished'
-};
+import { STATUS_KEYS, formatDateTimeString } from '../utils/articleUtils';
 
 interface ReviewArticleModalProps {
   visible: boolean;
@@ -87,7 +78,7 @@ const ReviewArticleModal: React.FC<ReviewArticleModalProps> = ({
   if (!article) return null;
 
   const formattedDate = article.createdAt 
-    ? dayjs(article.createdAt).format('YYYY-MM-DD HH:mm:ss')
+    ? formatDateTimeString(article.createdAt)
     : '未知时间';
 
   return (
